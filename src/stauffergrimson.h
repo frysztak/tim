@@ -7,15 +7,15 @@ using namespace cv;
 class StaufferGrimson
 {
 	private:
-		static const int GaussiansPerPixel = 5;
-		static float constexpr alpha = 0.005f;
+		static const int GaussiansPerPixel = 4;
+		static float constexpr alpha = 0.002f;
 		static float constexpr oneMinusAlpha = 1.0f - alpha;
 		static float constexpr rho = 0.0005f;
 		static float constexpr oneMinusRho = 1.0f - rho;
 			
 		struct Gaussian 
 		{
-			float variance = 36.0f;
+			float variance = 16.0f;
 			float miR = 0;
 			float miG = 0;
 			float miB = 0;

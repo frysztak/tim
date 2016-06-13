@@ -7,9 +7,9 @@
 
 using namespace cv;
 
-const float scaleFactor = .7f;
+const float scaleFactor = .5f;
 
-const std::string videoPath = "/mnt/things/car detection/videos/lausanne.mp4";
+const std::string videoPath = "/mnt/things/car detection/videos/auburn_toomers2.mp4";
 StaufferGrimson* bgs = new StaufferGrimson();
 
 void MouseEvent(int event, int x, int y, int flags, void* userdata)
@@ -18,9 +18,9 @@ void MouseEvent(int event, int x, int y, int flags, void* userdata)
 	if (event == CV_EVENT_LBUTTONDOWN)
 	{
 		if (y > (rgb->rows / 2))
-			y -= rgb->rows;
+			y -= rgb->rows/2;
 		
- 		int idx = rgb->cols * x + y; 
+ 		int idx = rgb->size().width * y + x; 
 		printf("%d %d: %d, %d, %d\n", 
 				x, y, 
 				(int)(*rgb).at<Vec3b>(y, x)[2], 
@@ -90,6 +90,9 @@ int main(int argc, char** argv )
 
 		bgs->Substract(frame, bg);
 		}
+
+		medianBlur(bg, bg, 3);
+		morphologyEx(bg, bg, MORPH_OPEN, kernel);
 		//morphologyEx(bg, bg, MORPH_OPEN, kernel);
 
 		if (!benchmarkMode)
@@ -105,7 +108,7 @@ int main(int argc, char** argv )
 		if (benchmarkMode && frameNum == framesToProcess)
 			break;
 
-		char key = waitKey(1);
+		char key = waitKey(10);
 		if(key == 'q')
 			break;
 		else if (key == ' ')
