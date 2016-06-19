@@ -10,8 +10,6 @@ class StaufferGrimson
 		static const int GaussiansPerPixel = 4;
 		static float constexpr alpha = 0.002f;
 		static float constexpr oneMinusAlpha = 1.0f - alpha;
-		static float constexpr rho = 0.0005f;
-		static float constexpr oneMinusRho = 1.0f - rho;
 			
 		struct Gaussian 
 		{

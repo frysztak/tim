@@ -35,35 +35,27 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 		float dR = gauss.miR - rgb.z;
 		float dG = gauss.miG - rgb.y;
 		float dB = gauss.miB - rgb.x;
-		float distance = sqrt(dR*dR + dG*dG + dB*dB);
+		float distance = dR*dR + dG*dG + dB*dB;
 
-		if (distance < 2.5*sqrt(gauss.variance) && !matchFound)
+		if (sqrt(distance) < 2.5*sqrt(gauss.variance) && !matchFound)
 		{
 			matchFound = true;
 
-			/*auto getRho = [](float mi, float variance, float colour) 
-			{
-				float rho = 1/(sqrt(2*M_PI*variance));
-				float exponent = -0.5*(colour-mi)*(colour-mi);
-				exponent /= variance;
-				rho *= exp(exponent);
+			float exponent = -0.5 / gauss.variance;
+			exponent *= distance;
+			
+			float eta = pow(2 * M_PI, 3.0 / 2.0);
+			eta *= pow(sqrt(gauss.variance), 3.0);
+			eta = 1.0 / eta;
+			eta *= exp(exponent);
 
-				return rho;
-			};
+			float rho = alpha * eta;
+			float oneMinusRho = 1.0 - rho;
 
-			gauss.weight = oneMinusAlpha*gauss.weight + alpha;
-			float rho2 = getRho(gauss.miR, gauss.variance, rgb.z);
-			gauss.miR = (1 - rho2)*gauss.miR + rho2*rgb.z;
-
-			rho2 = getRho(gauss.miG, gauss.variance, rgb.y);
-			gauss.miG = (1 - rho2)*gauss.miG + rho2*rgb.y;
-
-			rho2 = getRho(gauss.miB, gauss.variance, rgb.x);
-			gauss.miB = (1 - rho2)*gauss.miB + rho2*rgb.x;*/
 			gauss.miR = oneMinusRho*gauss.miR + rho*rgb.z;
 			gauss.miG = oneMinusRho*gauss.miG + rho*rgb.y;
 			gauss.miB = oneMinusRho*gauss.miB + rho*rgb.x;
-			gauss.variance = oneMinusRho*gauss.variance + rho*distance*distance;
+			gauss.variance = oneMinusRho*gauss.variance + rho*distance;
 		}
 		else
 		{
@@ -144,25 +136,7 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 			isBackground = false;
 			break;
 		}
-	}
-
-	/*
-	for (const Gaussian& gauss : mixture)
-	{
-		float dR = gauss.miR - rgb.z;
-		float dG = gauss.miG - rgb.y;
-		float dB = gauss.miB - rgb.x;
-		float distance = sqrt(dR*dR + dG*dG + dB*dB);
-
-		if (distance < 2.5*sqrt(gauss.variance))
-		{
-			if (weightSum <= 0.8)
-				isBackground = true;
-		}
-
-		weightSum += gauss.weight;
-	}
-	*/
+	}	
 
 	return !isBackground;
 }
