@@ -12,7 +12,7 @@ StaufferGrimson::~StaufferGrimson()
 	this->Gaussians.clear();
 }
 
-void StaufferGrimson::Init(const Size &size)
+void StaufferGrimson::Init(const Size &size, Mat& foregroundMask)
 {
 	auto num = size.area();
 	this->Gaussians.reserve(num);
@@ -24,6 +24,7 @@ void StaufferGrimson::Init(const Size &size)
 	}
 
 	this->Background = Mat(size, CV_8UC3);
+	foregroundMask = Mat(size, CV_8UC3);
 }
 
 bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
@@ -88,8 +89,8 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 		gauss.miR = rgb.z;	
 		gauss.miG = rgb.y;
 		gauss.miB = rgb.x;
-		gauss.weight = 0.01f;
-		gauss.variance = 36.0f;
+		gauss.weight = initialWeight;
+		gauss.variance = initialVariance;
 
 		// Gaussian has been changed, update sum of the weights.
 		weightSum = 0;
@@ -113,7 +114,7 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 
 	for (const Gaussian& gauss : mixture)
 	{
-		if (weightSum > 0.8)
+		if (weightSum > minimalWeightSum)
 			break;
 
 		B++;
