@@ -22,6 +22,8 @@ void StaufferGrimson::Init(const Size &size)
 		g.reserve(GaussiansPerPixel);
 		this->Gaussians.push_back(g);
 	}
+
+	this->Background = Mat(size, CV_8UC3);
 }
 
 bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
@@ -107,19 +109,15 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 	// estimate background model (equation 9 in the paper)
 	weightSum = 0;
 	int B = 0;
-	bool isBackground = true;
+	bool isForeground = false;
 
 	for (const Gaussian& gauss : mixture)
 	{
-		if (weightSum <= 0.6)
-		{
-			B++;
-			weightSum += gauss.weight;
-		} 
-		else
-		{
+		if (weightSum > 0.8)
 			break;
-		}
+
+		B++;
+		weightSum += gauss.weight;
 	}
 
 	for(int i = 0; i < B; i++)
@@ -133,15 +131,15 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 
 		if (distance > 2.5*sqrt(gauss.variance))
 		{
-			isBackground = false;
+			isForeground = true;
 			break;
 		}
 	}	
 
-	return !isBackground;
+	return isForeground;
 }
 
-void StaufferGrimson::Substract(InputArray _src, OutputArray _dst)
+const Mat& StaufferGrimson::Substract(InputArray _src, OutputArray _dst)
 {
 	Mat src = _src.getMat();
 	Mat dst = _dst.getMat();
@@ -152,7 +150,6 @@ void StaufferGrimson::Substract(InputArray _src, OutputArray _dst)
 		{
 			unsigned long idx = src.size().width*r + c;
 			auto pixel = src.at<Pixel>(idx);
-			//std::cout << "R: " << unsigned(pixel.x) << " G: " << unsigned(pixel.y) << " B: " << unsigned(pixel.z) << std::endl;
 			
 			GaussianMixture& gaussians = this->Gaussians[idx];
 			bool foreground = this->SubstractPixel(pixel, gaussians);
@@ -160,8 +157,15 @@ void StaufferGrimson::Substract(InputArray _src, OutputArray _dst)
 				dst.at<Pixel>(idx) = Pixel(255, 255, 255);
 			else
 				dst.at<Pixel>(idx) = Pixel(0, 0, 0);
+
+			// update current background model (or rather, background image)
+			// most probable gaussian
+			auto gauss = gaussians[0];
+			this->Background.at<Pixel>(idx) = Pixel(gauss.miB, gauss.miG, gauss.miR);
 		}
 	}
+
+	return this->Background;
 }
 
 void StaufferGrimson::Dump(int idx)

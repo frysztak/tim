@@ -7,8 +7,8 @@ using namespace cv;
 class StaufferGrimson
 {
 	private:
-		static const int GaussiansPerPixel = 4;
-		static float constexpr alpha = 0.002f;
+		static const int GaussiansPerPixel = 3;
+		static float constexpr alpha = 0.004f;
 		static float constexpr oneMinusAlpha = 1.0f - alpha;
 			
 		struct Gaussian 
@@ -31,6 +31,9 @@ class StaufferGrimson
 		// matrix that holds Gaussians for each pixel
 		std::vector<GaussianMixture> Gaussians;
 
+		// current background model
+		Mat Background;
+
 		bool SubstractPixel(const Pixel& rgb, GaussianMixture& gaussians);
 
 	public:
@@ -38,6 +41,6 @@ class StaufferGrimson
 		~StaufferGrimson();
 
 		void Init(const Size& size);
-		void Substract(InputArray src, OutputArray dst);
+		const Mat& Substract(InputArray src, OutputArray dst);
 		void Dump(int idx);
 };

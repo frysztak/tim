@@ -9,7 +9,7 @@ using namespace cv;
 
 const float scaleFactor = .5f;
 
-const std::string videoPath = "/mnt/things/car detection/videos/auburn_toomers2.mp4";
+const std::string videoPath = "/mnt/things/car detection/videos/sofia.mp4";
 StaufferGrimson* bgs = new StaufferGrimson();
 
 void MouseEvent(int event, int x, int y, int flags, void* userdata)
@@ -30,7 +30,7 @@ void MouseEvent(int event, int x, int y, int flags, void* userdata)
 	}         
 }
 
-int main(int argc, char** argv )
+int main(int argc, char** argv)
 {
 	VideoWriter writer;
 
@@ -43,11 +43,11 @@ int main(int argc, char** argv )
 	//cap.set(CAP_PROP_POS_MSEC, 1292000); // skip to 21:30
 	cap.set(CAP_PROP_POS_MSEC, (41*60+2)*1000); // skip to 41:42
 
-	Mat frame, bg, show;
-	cap >> frame;
-	resize(frame, frame, Size(), scaleFactor, scaleFactor);
-	bgs->Init(frame.size());
-	bg = frame.clone();
+	Mat inputFrame, foregroundMask, show, bgModel;
+	cap >> inputFrame;
+	resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
+	bgs->Init(inputFrame.size());
+	foregroundMask = inputFrame.clone();
 	
 	bool benchmarkMode = false;
 	bool record = false;
@@ -63,7 +63,7 @@ int main(int argc, char** argv )
  		record = true;
 
 		writer.open("tom.avi", VideoWriter::fourcc('X', 'V','I','D'),
-				cap.get(CV_CAP_PROP_FPS), Size(frame.size().width, 2*frame.size().height));
+				cap.get(CV_CAP_PROP_FPS), Size(inputFrame.size().width, 2*inputFrame.size().height));
 	}
 
 	if (!benchmarkMode)
@@ -74,8 +74,8 @@ int main(int argc, char** argv )
 	int morph_size = 2;
 	Mat kernel = getStructuringElement(MORPH_ELLIPSE, Size(morph_size, morph_size));
 
-	uint32_t frameNum = 0;
-	uint16_t framesToProcess = 400;
+	uint32_t inputFrameNum = 0;
+	uint16_t inputFramesToProcess = 400;
 	auto t1 = std::chrono::steady_clock::now();
 
 	bool loadNew = true;
@@ -83,29 +83,28 @@ int main(int argc, char** argv )
 	{
 		if(loadNew)
 		{
-		cap >> frame;
-		resize(frame, frame, Size(), scaleFactor, scaleFactor);
-		
-		frameNum++;
+			cap >> inputFrame;
+			resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
+			
+			inputFrameNum++;
 
-		bgs->Substract(frame, bg);
+			bgModel = bgs->Substract(inputFrame, foregroundMask);
+
+			medianBlur(foregroundMask, foregroundMask, 3);
+			morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, kernel);
 		}
-
-		medianBlur(bg, bg, 3);
-		morphologyEx(bg, bg, MORPH_OPEN, kernel);
-		//morphologyEx(bg, bg, MORPH_OPEN, kernel);
-
+		
 		if (!benchmarkMode)
 		{
-			show = frame;
-			show.push_back(bg);
+			show = inputFrame;
+			show.push_back(foregroundMask);
 			imshow("OpenCV", show);
 			
 			if(record)
 				writer << show;
 		}
 		
-		if (benchmarkMode && frameNum == framesToProcess)
+		if (benchmarkMode && inputFrameNum == inputFramesToProcess)
 			break;
 
 		char key = waitKey(10);
@@ -114,11 +113,12 @@ int main(int argc, char** argv )
 		else if (key == ' ')
 			loadNew = !loadNew;
 	}
+
 	auto t2 = std::chrono::steady_clock::now();
 	if (benchmarkMode)
 	{
 		auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-		std::cout << "Processed " << framesToProcess << " frames in " << time_span.count() << " seconds." << std::endl;
+		std::cout << "Processed " << inputFramesToProcess << " inputFrames in " << time_span.count() << " seconds." << std::endl;
 	}
 
 	if (record)
