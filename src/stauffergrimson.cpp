@@ -12,7 +12,7 @@ StaufferGrimson::~StaufferGrimson()
 	this->Gaussians.clear();
 }
 
-void StaufferGrimson::Init(const Size &size, Mat& foregroundMask)
+void StaufferGrimson::Init(const Size &size)
 {
 	auto num = size.area();
 	this->Gaussians.reserve(num);
@@ -23,11 +23,11 @@ void StaufferGrimson::Init(const Size &size, Mat& foregroundMask)
 		this->Gaussians.push_back(g);
 	}
 
-	this->Background = Mat(size, CV_8UC3);
-	foregroundMask = Mat(size, CV_8UC3);
+	this->Background = Mat::zeros(size, CV_8UC3);
+	this->ForegroundMask = Mat::zeros(size, CV_8U);
 }
 
-bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
+bool StaufferGrimson::SubstractPixel(const Colour& rgb, GaussianMixture& mixture)
 {
 	double weightSum = 0.0;
 	bool matchFound = false;
@@ -35,9 +35,9 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 
 	for (Gaussian& gauss : mixture)
 	{
-		float dR = gauss.miR - rgb.z;
+		float dR = gauss.miR - rgb.x;
 		float dG = gauss.miG - rgb.y;
-		float dB = gauss.miB - rgb.x;
+		float dB = gauss.miB - rgb.z;
 		float distance = dR*dR + dG*dG + dB*dB;
 
 		if (sqrt(distance) < 2.5*sqrt(gauss.variance) && !matchFound)
@@ -55,9 +55,9 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 			float rho = alpha * eta;
 			float oneMinusRho = 1.0 - rho;
 
-			gauss.miR = oneMinusRho*gauss.miR + rho*rgb.z;
+			gauss.miR = oneMinusRho*gauss.miR + rho*rgb.x;
 			gauss.miG = oneMinusRho*gauss.miG + rho*rgb.y;
-			gauss.miB = oneMinusRho*gauss.miB + rho*rgb.x;
+			gauss.miB = oneMinusRho*gauss.miB + rho*rgb.z;
 			gauss.variance = oneMinusRho*gauss.variance + rho*distance;
 		}
 		else
@@ -86,9 +86,9 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 
 		Gaussian& gauss = mixture.back();
 
-		gauss.miR = rgb.z;	
+		gauss.miR = rgb.x;	
 		gauss.miG = rgb.y;
-		gauss.miB = rgb.x;
+		gauss.miB = rgb.z;
 		gauss.weight = initialWeight;
 		gauss.variance = initialVariance;
 
@@ -125,9 +125,9 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 	{
 		const Gaussian& gauss = mixture[i];
 
-		float dR = gauss.miR - rgb.z;
+		float dR = gauss.miR - rgb.x;
 		float dG = gauss.miG - rgb.y;
-		float dB = gauss.miB - rgb.x;
+		float dB = gauss.miB - rgb.z;
 		float distance = sqrt(dR*dR + dG*dG + dB*dB);
 
 		if (distance > 2.5*sqrt(gauss.variance))
@@ -140,33 +140,29 @@ bool StaufferGrimson::SubstractPixel(const Pixel& rgb, GaussianMixture& mixture)
 	return isForeground;
 }
 
-const Mat& StaufferGrimson::Substract(InputArray _src, OutputArray _dst)
+void StaufferGrimson::Substract(InputArray _src)
 {
 	Mat src = _src.getMat();
-	Mat dst = _dst.getMat();
 
 	for(int r = 0; r < src.rows; r++)
 	{
 		for(int c = 0; c < src.cols; c++)
 		{
 			unsigned long idx = src.size().width*r + c;
-			auto pixel = src.at<Pixel>(idx);
+			auto pixel = src.at<Colour>(idx);
 			
 			GaussianMixture& gaussians = this->Gaussians[idx];
 			bool foreground = this->SubstractPixel(pixel, gaussians);
 			if(foreground)
-				dst.at<Pixel>(idx) = Pixel(255, 255, 255);
+				ForegroundMask.at<uint8_t>(idx) = 1;
 			else
-				dst.at<Pixel>(idx) = Pixel(0, 0, 0);
+				ForegroundMask.at<uint8_t>(idx) = 0;
 
 			// update current background model (or rather, background image)
-			// most probable gaussian
 			auto gauss = gaussians[0];
-			this->Background.at<Pixel>(idx) = Pixel(gauss.miB, gauss.miG, gauss.miR);
+			Background.at<Colour>(idx) = Colour(gauss.miR, gauss.miG, gauss.miB);
 		}
 	}
-
-	return this->Background;
 }
 
 void StaufferGrimson::Dump(int idx)

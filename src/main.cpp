@@ -3,36 +3,18 @@
 #include <chrono>
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
-#include "stauffergrimson.h"
+#include "benedek.h"
 
 using namespace cv;
 
-const float scaleFactor = .5f;
+const float scaleFactor = .4f;
 
-#define MORPH_SIZE 2
-#define MEDIAN_SIZE 3
+#define MORPH_SIZE 0
+#define MEDIAN_SIZE 0
 #define BENCHMARK_FRAMES_NUM 400
 
-const std::string videoPath = "/mnt/things/car detection/videos/auburn_toomers2.mp4";
-StaufferGrimson* bgs = new StaufferGrimson();
-
-void MouseEvent(int event, int x, int y, int flags, void* userdata)
-{
-	Mat* rgb = (Mat*)userdata;
-	if (event == CV_EVENT_LBUTTONDOWN)
-	{
-		if (y > (rgb->rows / 2))
-			y -= rgb->rows/2;
-		
- 		int idx = rgb->size().width * y + x; 
-		printf("%d %d: %d, %d, %d\n", 
-				x, y, 
-				(int)(*rgb).at<Vec3b>(y, x)[2], 
-				(int)(*rgb).at<Vec3b>(y, x)[1], 
-				(int)(*rgb).at<Vec3b>(y, x)[0]);
-		bgs->Dump(idx);
-	}         
-}
+const std::string videoPath = "/mnt/things/car detection/videos/lausanne.mp4";
+BenedekSziranyi* benek = new BenedekSziranyi();
 
 int main(int argc, char** argv)
 {
@@ -51,7 +33,7 @@ int main(int argc, char** argv)
 
 	cap >> inputFrame;
 	resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
-	bgs->Init(inputFrame.size(), foregroundMask);
+	benek->Init(inputFrame.size());
 	
 	bool benchmarkMode = false;
 	bool record = false;
@@ -75,7 +57,6 @@ int main(int argc, char** argv)
 	if (!benchmarkMode)
 	{
 		namedWindow("OpenCV", WINDOW_AUTOSIZE);
-		setMouseCallback("OpenCV", MouseEvent, &displayFrame);
 	}
 
 	if (MORPH_SIZE != 0)
@@ -84,14 +65,19 @@ int main(int argc, char** argv)
 	uint32_t inputFrameNum = 0;
 	auto t1 = std::chrono::steady_clock::now();
 
+	bool skip = true;
 	while(true)
 	{
+		skip = !skip;
+		if (skip)
+			continue;
+		
 		if(loadNew)
 		{
 			cap >> inputFrame;
 			resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
 			
-			bgModel = bgs->Substract(inputFrame, foregroundMask);
+			benek->ProcessFrame(inputFrame, foregroundMask);
 
 			if (MEDIAN_SIZE != 0)
 				medianBlur(foregroundMask, foregroundMask, MEDIAN_SIZE);
@@ -103,10 +89,24 @@ int main(int argc, char** argv)
 		
 		if (!benchmarkMode)
 		{
-			hconcat(inputFrame, bgModel, displayFrame);
-			Mat tmp;
-			hconcat(foregroundMask, foregroundMask, tmp);
-			displayFrame.push_back(tmp);
+			Mat foregroundMaskRGB, staufferForegroundMaskRGB, row1, row2;
+
+			displayFrame = inputFrame;
+			cvtColor(displayFrame, displayFrame, COLOR_Luv2BGR);
+
+			foregroundMask *= 255;
+			cvtColor(foregroundMask, foregroundMaskRGB, COLOR_GRAY2BGR);
+
+			staufferForegroundMaskRGB = benek->GetStaufferForegroundMask() * 255;
+			cvtColor(staufferForegroundMaskRGB, staufferForegroundMaskRGB, COLOR_GRAY2BGR);
+
+			hconcat(inputFrame, foregroundMaskRGB, row1);
+
+			bgModel = benek->GetStaufferBackgroundModel();
+			cvtColor(bgModel, bgModel, COLOR_Luv2BGR);
+			hconcat(bgModel, staufferForegroundMaskRGB, row2);
+
+			vconcat(row1, row2, displayFrame);
 			imshow("OpenCV", displayFrame);
 			
 			if(record)
@@ -116,7 +116,7 @@ int main(int argc, char** argv)
 		if (benchmarkMode && inputFrameNum == BENCHMARK_FRAMES_NUM)
 			break;
 
-		char key = waitKey(10);
+		char key = waitKey(20);
 		if(key == 'q')
 			break;
 		else if (key == ' ')
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
 	if (record)
 		writer.release();
 
-	delete bgs;
+	delete benek;
 	return 0;
 }
 
