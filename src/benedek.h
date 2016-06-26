@@ -10,7 +10,7 @@ using namespace cv;
 class BenedekSziranyi
 {
 	private:
-		const float ForegroundThreshold = 8;
+		const float ForegroundThreshold = 8.5;
 		const float ForegroundThreshold2 = 0.7;
 		const uint8_t WindowSize = 10;
 		const float Tau = 15;
@@ -18,6 +18,7 @@ class BenedekSziranyi
 		const int ShadowModelUpdateRate = 150; // frames
 		const uint Qmin = 15'000;
 		const uint Qmax = 30'000;
+		bool ShadowDetectionEnabled = true;
 
 		struct Shadow
 		{
@@ -37,7 +38,6 @@ class BenedekSziranyi
 		};
 	
 		uint32_t currentFrame;	
-		std::vector<Pixel> Models;
 		StaufferGrimson bgs;
 		Shadow shadowModel;
 
@@ -56,6 +56,7 @@ class BenedekSziranyi
 		// grey: shadows
 		
 		void ProcessFrame(InputArray _src, OutputArray _fg, OutputArray _sh);
+		void ToggleShadowDetection();
 		const Mat& GetStaufferBackgroundModel();
 		const Mat& GetStaufferForegroundMask();
 };

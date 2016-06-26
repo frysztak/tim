@@ -7,10 +7,10 @@
 
 using namespace cv;
 
-const float scaleFactor = .6f;
+const float scaleFactor = .5f;
 
 #define MORPH_SIZE 0
-#define MEDIAN_SIZE 5
+#define MEDIAN_SIZE 0
 #define BENCHMARK_FRAMES_NUM 400
 
 const std::string videoPath = "/mnt/things/car detection/videos/act.mp4";
@@ -117,6 +117,8 @@ int main(int argc, char** argv)
 			break;
 		else if (key == ' ')
 			loadNew = !loadNew;
+		else if (key == 's')
+			benek->ToggleShadowDetection();
 	}
 
 	auto t2 = std::chrono::steady_clock::now();

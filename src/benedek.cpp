@@ -7,14 +7,7 @@ void BenedekSziranyi::Init(const Size& size)
 	currentFrame = 1;
 
 	this->FrameSize = size;
-	bgs.Init(this->FrameSize);
-
-	this->Models.reserve(this->FrameSize.area());
-	for (int i = 0; i < this->FrameSize.area(); i++)
-	{
-		auto p = Pixel();
-		this->Models.push_back(p);
-	}
+	bgs.Init(this->FrameSize);	
 
 	InitShadowModel();
 }
@@ -23,13 +16,10 @@ void BenedekSziranyi::ProcessFrame(InputArray _src, OutputArray _fg, OutputArray
 {
 	Mat inputFrame = _src.getMat();
 
-	// update background model
-	cvtColor(inputFrame, inputFrame, COLOR_BGR2RGB);
-	bgs.Substract(inputFrame);
-
+	// update background model	
 	// convert BGR to CIE L*u*v*
-	cvtColor(inputFrame, inputFrame, COLOR_RGB2Luv);
-	cvtColor(bgs.Background, bgs.Background, COLOR_RGB2Luv);
+	cvtColor(inputFrame, inputFrame, COLOR_BGR2Luv);
+	bgs.Substract(inputFrame);
 
 	// TODO: update microstructure model
 	
@@ -50,26 +40,24 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 	this->ShadowMask = Mat::zeros(FrameSize, CV_8U);
 
 	// preliminary detection
-	for(int r = 0; r < inputFrame.rows; r++)
+	for(int idx = 0; idx < FrameSize.area(); idx++)
 	{
-		for(int c = 0; c < inputFrame.cols; c++)
-		{
-			unsigned long idx = inputFrame.size().width*r + c;
-			auto& colour = inputFrame.at<Colour>(idx);
-			float L = (float)colour.x;
-			float u = (float)colour.y;
-			float v = (float)colour.z;
+		auto& colour = inputFrame.at<Colour>(idx);
+		float L = (float)colour.x;
+		float u = (float)colour.y;
+		float v = (float)colour.z;
 
-			// calculate eplison for background
-			const Gaussian& gauss = bgs.Gaussians[idx][0];
-			Colour& background = bgs.Background.at<Colour>(idx);
+		// calculate eplison for background
+		const Gaussian& gauss = bgs.Gaussians[idx][0];
 
-			float epsilon_bg = 2 * log10(2 * M_PI);
-			epsilon_bg += 3 * log10(sqrt(gauss.variance));
-			epsilon_bg += 0.5 * pow(L - background.x, 2) / gauss.variance;
-			epsilon_bg += 0.5 * pow(u - background.y, 2) / gauss.variance;
-			epsilon_bg += 0.5 * pow(v - background.z, 2) / gauss.variance;
-		
+		float epsilon_bg = 2 * log10(2 * M_PI);
+		epsilon_bg += 3 * log10(sqrt(gauss.variance));
+		epsilon_bg += 0.5 * pow(L - gauss.miR, 2) / gauss.variance;
+		epsilon_bg += 0.5 * pow(u - gauss.miG, 2) / gauss.variance;
+		epsilon_bg += 0.5 * pow(v - gauss.miB, 2) / gauss.variance;
+
+		if (ShadowDetectionEnabled)
+		{	
 			float epsilon_sh = 2 * log10(2 * M_PI);
 			epsilon_sh += log10(sqrt(shadowModel.L_variance));
 			epsilon_sh += log10(sqrt(shadowModel.u_variance));
@@ -84,7 +72,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 				// this pixel is a shadow
 				ShadowMask.at<uint8_t>(idx) = 1;
 
-				shadowModel.Wu_t.push_back(u - background.y);
+				shadowModel.Wu_t.push_back(u - gauss.miG);
 				shadowModel.Q.emplace_back(L, currentFrame);
 				addedToQ = true;
 			}
@@ -94,6 +82,15 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 				ForegroundMask.at<uint8_t>(idx) = 1;
 				if(!addedToQ)
 					shadowModel.Q.emplace_back(L, currentFrame);
+			}
+		}
+		else
+		{
+			if (epsilon_bg > ForegroundThreshold)
+			{
+				// it's a foreground
+				ForegroundMask.at<uint8_t>(idx) = 1;
+				shadowModel.Q.emplace_back(L, currentFrame);
 			}
 		}
 	}
@@ -154,26 +151,23 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 			float u = (float)colour.y;
 			float v = (float)colour.z;
 
-			for (int ri = 0; ri < Fs_mask.rows; ri++)
+			for (int idx = 0; idx < Fs_mask.size().area(); idx++)
 			{
-				for (int ci = 0; ci < Fs_mask.cols; ci++)
-				{
-					if (Fs_mask.at<uint8_t>(ri, ci) == 0)
-						continue;
+				if (Fs_mask.at<uint8_t>(idx) == 0)
+					continue;
 
-					auto colour_ = Vs.at<Colour>(ri, ci);
-					float L_ = (float)colour_.x;
-					float u_ = (float)colour_.y;
-					float v_ = (float)colour_.z;
+				auto colour_ = Vs.at<Colour>(idx);
+				float L_ = (float)colour_.x;
+				float u_ = (float)colour_.y;
+				float v_ = (float)colour_.z;
 
-					float dL = L - L_;
-					float du = u - u_;
-					float dv = v - v_;
-					float distance = sqrt(dL*dL + du*du + dv*dv);
+				float dL = L - L_;
+				float du = u - u_;
+				float dv = v - v_;
+				float distance = sqrt(dL*dL + du*du + dv*dv);
 
-					if (distance < Tau)
-						FsD_mask.at<uint8_t>(ri, ci) = 1;
-				}
+				if (distance < Tau)
+					FsD_mask.at<uint8_t>(idx) = 1;
 			}
 
 			Scalar mean, stdDev;
@@ -250,6 +244,11 @@ void BenedekSziranyi::UpdateShadowModel()
 	std::cout << "u_variance = " << shadowModel.u_variance << ", v_variance = " << shadowModel.v_variance << std::endl;
 
 	shadowModel.Wu_t.clear();
+}
+
+void BenedekSziranyi::ToggleShadowDetection()
+{
+	ShadowDetectionEnabled = !ShadowDetectionEnabled;
 }
 
 const Mat& BenedekSziranyi::GetStaufferBackgroundModel()
