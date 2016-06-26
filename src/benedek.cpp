@@ -1,23 +1,27 @@
+#include <algorithm>
 #include "benedek.h"
+#include "utils.h"
 
 void BenedekSziranyi::Init(const Size& size)
 {
-	bgs.Init(size);
+	currentFrame = 1;
 
-	auto num = size.area();
-	this->Models.reserve(num);
-	for (int i = 0; i < num; i++)
+	this->FrameSize = size;
+	bgs.Init(this->FrameSize);
+
+	this->Models.reserve(this->FrameSize.area());
+	for (int i = 0; i < this->FrameSize.area(); i++)
 	{
 		auto p = Pixel();
 		this->Models.push_back(p);
 	}
 
+	InitShadowModel();
 }
 
-void BenedekSziranyi::ProcessFrame(InputArray _src, OutputArray _dst)
+void BenedekSziranyi::ProcessFrame(InputArray _src, OutputArray _fg, OutputArray _sh)
 {
 	Mat inputFrame = _src.getMat();
-	Mat outputMask = _dst.getMat();
 
 	// update background model
 	cvtColor(inputFrame, inputFrame, COLOR_BGR2RGB);
@@ -27,18 +31,23 @@ void BenedekSziranyi::ProcessFrame(InputArray _src, OutputArray _dst)
 	cvtColor(inputFrame, inputFrame, COLOR_RGB2Luv);
 	cvtColor(bgs.Background, bgs.Background, COLOR_RGB2Luv);
 
-	// TODO: update shadow model
 	// TODO: update microstructure model
 	
 	DetectForeground(inputFrame);
+	if (currentFrame % ShadowModelUpdateRate == 0)
+		UpdateShadowModel();
 
-	this->ForegroundMask.copyTo(_dst);
+	this->ForegroundMask.copyTo(_fg);
+	this->ShadowMask.copyTo(_sh);
+
+	currentFrame++;
 }
 
 void BenedekSziranyi::DetectForeground(InputArray _src)
 {
 	Mat inputFrame = _src.getMat();
-	this->ForegroundMask = Mat::zeros(inputFrame.size(), CV_8U);
+	this->ForegroundMask = Mat::zeros(FrameSize, CV_8U);
+	this->ShadowMask = Mat::zeros(FrameSize, CV_8U);
 
 	// preliminary detection
 	for(int r = 0; r < inputFrame.rows; r++)
@@ -46,7 +55,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 		for(int c = 0; c < inputFrame.cols; c++)
 		{
 			unsigned long idx = inputFrame.size().width*r + c;
-			auto colour = inputFrame.at<Colour>(idx);
+			auto& colour = inputFrame.at<Colour>(idx);
 			float L = (float)colour.x;
 			float u = (float)colour.y;
 			float v = (float)colour.z;
@@ -55,17 +64,57 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 			const Gaussian& gauss = bgs.Gaussians[idx][0];
 			Colour& background = bgs.Background.at<Colour>(idx);
 
-			float epsilon = 2 * log10(2 * M_PI);
-			epsilon += 3 * log10(sqrt(gauss.variance));
-			epsilon += 0.5 * pow(L - background.x, 2) / gauss.variance;
-			epsilon += 0.5 * pow(u - background.y, 2) / gauss.variance;
-			epsilon += 0.5 * pow(v - background.z, 2) / gauss.variance;
+			float epsilon_bg = 2 * log10(2 * M_PI);
+			epsilon_bg += 3 * log10(sqrt(gauss.variance));
+			epsilon_bg += 0.5 * pow(L - background.x, 2) / gauss.variance;
+			epsilon_bg += 0.5 * pow(u - background.y, 2) / gauss.variance;
+			epsilon_bg += 0.5 * pow(v - background.z, 2) / gauss.variance;
+		
+			float epsilon_sh = 2 * log10(2 * M_PI);
+			epsilon_sh += log10(sqrt(shadowModel.L_variance));
+			epsilon_sh += log10(sqrt(shadowModel.u_variance));
+			epsilon_sh += log10(sqrt(shadowModel.v_variance));
+			epsilon_sh += 0.5 * pow(L - shadowModel.L_mean, 2) / shadowModel.L_variance;
+			epsilon_sh += 0.5 * pow(u - shadowModel.u_mean, 2) / shadowModel.u_variance;
+			epsilon_sh += 0.5 * pow(v - shadowModel.v_mean, 2) / shadowModel.v_variance;
 
-			if (epsilon > ForegroundThreshold)
+			bool addedToQ = false;	
+			if (epsilon_sh < ForegroundThreshold)
+			{
+				// this pixel is a shadow
+				ShadowMask.at<uint8_t>(idx) = 1;
+
+				shadowModel.Wu_t.push_back(u - background.y);
+				shadowModel.Q.emplace_back(L, currentFrame);
+				addedToQ = true;
+			}
+			else if (epsilon_bg > ForegroundThreshold && epsilon_sh > ForegroundThreshold)
+			{
+				// it's a foreground
 				ForegroundMask.at<uint8_t>(idx) = 1;
+				if(!addedToQ)
+					shadowModel.Q.emplace_back(L, currentFrame);
+			}
 		}
 	}
 
+	// update shadow model (L_mean)
+	if (shadowModel.Q.size() >= Qmin)
+	{
+		while (shadowModel.Q.size() > Qmax)
+		{
+			// find eldest timestamp
+			auto eldest = *std::min_element(shadowModel.Q.cbegin(), shadowModel.Q.cend(), 
+					[](const auto& A, const auto& B) { return std::get<1>(A) < std::get<1>(B); });
+			uint32_t timestamp = std::get<1>(eldest);
+
+			auto endIt = shadowModel.Q.begin() + 1000;
+			shadowModel.Q.erase(std::remove_if(shadowModel.Q.begin(), endIt, 
+					[=](const auto& A) { return std::get<1>(A) == timestamp; }), endIt);
+		}
+	}
+	shadowModel.L_mean = argmax(shadowModel.Q);
+	
 	// second run, using moving window
 	if (!FOREGROUND_SECOND_PASS)
 		return;
@@ -159,6 +208,48 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 			ForegroundMask.at<uint8_t>(r, c) = epsilon_fg > ForegroundThreshold2 ? 1 : 0;
 		}
 	}
+}
+
+void BenedekSziranyi::InitShadowModel()
+{
+	Mat shadowMask = imread("/mnt/things/car detection/videos/act_shadows_mask.png", 0);
+	Mat shadow = imread("/mnt/things/car detection/videos/act_shadows.png");
+
+	cvtColor(shadow, shadow, COLOR_BGR2Luv);
+
+	Scalar mean, stdDev;
+	meanStdDev(shadow, mean, stdDev, shadowMask);
+
+	shadowModel.L_mean = mean[0];
+	shadowModel.u_mean = mean[1];
+	shadowModel.v_mean = mean[2]; 
+	shadowModel.L_variance = stdDev[0] * stdDev[0];
+	shadowModel.u_variance = stdDev[1] * stdDev[1];
+	shadowModel.v_variance = stdDev[2] * stdDev[2];
+}
+
+void BenedekSziranyi::UpdateShadowModel()
+{
+	std::cout << "\tUpdating shadow model..." << std::endl;
+	Mat wu(shadowModel.Wu_t, false);
+
+	Scalar mean, stdDev;
+	meanStdDev(wu, mean, stdDev);
+
+	std::cout << "#Wu = " << shadowModel.Wu_t.size() << std::endl;
+
+	float xi = shadowModel.Wu_t.size() / (float(FrameSize.area()) * ShadowModelUpdateRate * 150);
+	std::cout << "xi = " << xi << std::endl;
+
+	shadowModel.u_mean = (1.0 - xi)*shadowModel.u_mean + xi*mean[0];
+	shadowModel.v_mean = (1.0 - xi)*shadowModel.v_mean + xi*mean[0];
+	shadowModel.u_variance = (1.0 - xi)*shadowModel.u_variance + xi*stdDev[0]*stdDev[0];
+	shadowModel.v_variance = (1.0 - xi)*shadowModel.v_variance + xi*stdDev[0]*stdDev[0];
+
+	std::cout << "u_mean = " << shadowModel.u_mean << ", v_mean = " << shadowModel.v_mean << std::endl;
+	std::cout << "u_variance = " << shadowModel.u_variance << ", v_variance = " << shadowModel.v_variance << std::endl;
+
+	shadowModel.Wu_t.clear();
 }
 
 const Mat& BenedekSziranyi::GetStaufferBackgroundModel()

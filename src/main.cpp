@@ -7,18 +7,18 @@
 
 using namespace cv;
 
-const float scaleFactor = .4f;
+const float scaleFactor = .6f;
 
 #define MORPH_SIZE 0
-#define MEDIAN_SIZE 0
+#define MEDIAN_SIZE 5
 #define BENCHMARK_FRAMES_NUM 400
 
-const std::string videoPath = "/mnt/things/car detection/videos/lausanne.mp4";
+const std::string videoPath = "/mnt/things/car detection/videos/act.mp4";
 BenedekSziranyi* benek = new BenedekSziranyi();
 
 int main(int argc, char** argv)
 {
-	Mat inputFrame, foregroundMask, displayFrame, bgModel, morphKernel;
+	Mat inputFrame, foregroundMask, shadowMask, displayFrame, bgModel, morphKernel;
 	VideoWriter writer;
 	VideoCapture cap(videoPath);
 
@@ -29,7 +29,7 @@ int main(int argc, char** argv)
 	}
 
 	//cap.set(CAP_PROP_POS_MSEC, 1292000); // skip to 21:30
-	cap.set(CAP_PROP_POS_MSEC, (41*60+2)*1000); // skip to 41:42
+	//cap.set(CAP_PROP_POS_MSEC, (41*60+2)*1000); // skip to 41:42
 
 	cap >> inputFrame;
 	resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
@@ -65,19 +65,14 @@ int main(int argc, char** argv)
 	uint32_t inputFrameNum = 0;
 	auto t1 = std::chrono::steady_clock::now();
 
-	bool skip = true;
 	while(true)
 	{
-		skip = !skip;
-		if (skip)
-			continue;
-		
 		if(loadNew)
 		{
 			cap >> inputFrame;
 			resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
 			
-			benek->ProcessFrame(inputFrame, foregroundMask);
+			benek->ProcessFrame(inputFrame, foregroundMask, shadowMask);
 
 			if (MEDIAN_SIZE != 0)
 				medianBlur(foregroundMask, foregroundMask, MEDIAN_SIZE);
@@ -85,32 +80,33 @@ int main(int argc, char** argv)
 				morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, morphKernel);
 
 			inputFrameNum++;
-		}
-		
-		if (!benchmarkMode)
-		{
-			Mat foregroundMaskRGB, staufferForegroundMaskRGB, row1, row2;
 
-			displayFrame = inputFrame;
-			cvtColor(displayFrame, displayFrame, COLOR_Luv2BGR);
+			if (!benchmarkMode)
+			{
+				Mat staufferForegroundMask, row1, row2;
 
-			foregroundMask *= 255;
-			cvtColor(foregroundMask, foregroundMaskRGB, COLOR_GRAY2BGR);
+				displayFrame = inputFrame;
+				cvtColor(displayFrame, displayFrame, COLOR_Luv2BGR);
 
-			staufferForegroundMaskRGB = benek->GetStaufferForegroundMask() * 255;
-			cvtColor(staufferForegroundMaskRGB, staufferForegroundMaskRGB, COLOR_GRAY2BGR);
+				foregroundMask *= 255;
+				//foregroundMask += 127 * shadowMask;
+				cvtColor(foregroundMask, foregroundMask, COLOR_GRAY2BGR);
 
-			hconcat(inputFrame, foregroundMaskRGB, row1);
+				staufferForegroundMask = benek->GetStaufferForegroundMask() * 255;
+				cvtColor(staufferForegroundMask, staufferForegroundMask, COLOR_GRAY2BGR);
 
-			bgModel = benek->GetStaufferBackgroundModel();
-			cvtColor(bgModel, bgModel, COLOR_Luv2BGR);
-			hconcat(bgModel, staufferForegroundMaskRGB, row2);
+				hconcat(inputFrame, foregroundMask, row1);
 
-			vconcat(row1, row2, displayFrame);
-			imshow("OpenCV", displayFrame);
-			
-			if(record)
-				writer << displayFrame;
+				bgModel = benek->GetStaufferBackgroundModel();
+				cvtColor(bgModel, bgModel, COLOR_Luv2BGR);
+				hconcat(bgModel, staufferForegroundMask, row2);
+
+				vconcat(row1, row2, displayFrame);
+				imshow("OpenCV", displayFrame);
+				
+				if(record)
+					writer << displayFrame;
+			}
 		}
 		
 		if (benchmarkMode && inputFrameNum == BENCHMARK_FRAMES_NUM)
