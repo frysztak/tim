@@ -4,19 +4,17 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include "benedek.h"
-#include "classifier.h"
 
 using namespace cv;
 
-const float scaleFactor = .6f;
+const float scaleFactor = .5f;
 
 #define MORPH_SIZE 0
-#define MEDIAN_SIZE 5
+#define MEDIAN_SIZE 0
 #define BENCHMARK_FRAMES_NUM 400
 
 const std::string videoPath = "/mnt/things/car detection/videos/act.mp4";
 BenedekSziranyi* benek = new BenedekSziranyi();
-Classifier *classifier = new Classifier();
 
 int main(int argc, char** argv)
 {
@@ -87,7 +85,6 @@ int main(int argc, char** argv)
 			{
 				Mat staufferForegroundMask, row1, row2;
 
-				classifier->DrawBoundingBoxes(inputFrame, foregroundMask);
 				displayFrame = inputFrame;
 				cvtColor(displayFrame, displayFrame, COLOR_Luv2BGR);
 
@@ -135,7 +132,6 @@ int main(int argc, char** argv)
 		writer.release();
 
 	delete benek;
-	delete classifier;
 	return 0;
 }
 
