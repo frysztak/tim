@@ -1,5 +1,5 @@
 #ifndef BENEDEK_H
-#define BENDEK_H
+#define BENEDEK_H
 
 #include <vector>
 #include <tuple>
