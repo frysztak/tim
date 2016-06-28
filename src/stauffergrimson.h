@@ -1,3 +1,6 @@
+#ifndef STAUFFERGRIMSON_H
+#define STAUFFERGRIMSON_H
+
 #include <vector>
 #include <functional>
 #include <opencv2/opencv.hpp>
@@ -52,3 +55,5 @@ class StaufferGrimson
 		void Substract(InputArray src);
 		void Dump(int idx);
 };
+
+#endif

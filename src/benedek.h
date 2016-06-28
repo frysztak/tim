@@ -1,3 +1,6 @@
+#ifndef BENEDEK_H
+#define BENDEK_H
+
 #include <vector>
 #include <tuple>
 #include <opencv2/opencv.hpp>
@@ -60,3 +63,5 @@ class BenedekSziranyi
 		const Mat& GetStaufferBackgroundModel();
 		const Mat& GetStaufferForegroundMask();
 };
+
+#endif
