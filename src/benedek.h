@@ -1,5 +1,5 @@
 #ifndef BENEDEK_H
-#define BENDEK_H
+#define BENEDEK_H
 
 #include <vector>
 #include <tuple>
@@ -8,13 +8,13 @@
 
 using namespace cv;
 
-#define FOREGROUND_SECOND_PASS true
+#define FOREGROUND_SECOND_PASS false
 
 class BenedekSziranyi
 {
 	private:
-		const float ForegroundThreshold = 8.5;
-		const float ForegroundThreshold2 = 0.7;
+		const float ForegroundThreshold = 9;
+		const float ForegroundThreshold2 = 0.6;
 		const uint8_t WindowSize = 10;
 		const float Tau = 15;
 		const float Kappa_min = 0.1;
