@@ -1,20 +1,34 @@
-cmake_minimum_required( VERSION 2.8 )
+cmake_minimum_required(VERSION 2.8)
 
-## Load CMAKE configuration from environment variables
-set( CMAKE_MODULE_PATH $ENV{CMAKE_MODULE_PATH} )
-set( CMAKE_PREFIX_PATH $ENV{CMAKE_PREFIX_PATH} )
-                       
-## Specify a project name
-project( tim )
+## Required software
+find_package(OpenCV REQUIRED)
 
-## Set the build type
-if( NOT CMAKE_BUILD_TYPE )
-	set( CMAKE_BUILD_TYPE "Release" 
-		CACHE STRING "Build configuration 'Release' or 'Debug'." 
-		FORCE )
-endif()
+## Sources and headers
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${OpenCV_INCLUDE_DIRS})
 
-## Install the executable to <install_directory>/build
-set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/build)
-## Install libraries (if any) to <install_directory>/bin
-set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
+## Find all source files to be compiled into object files
+file(GLOB SOURCES *.cpp)
+
+## C++ compiler options
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+
+## 1. Compile...
+add_executable(tim ${SOURCES})
+
+## 2. Link...
+target_link_libraries(tim ${OpenCV_LIBS})
+
+## 3. Install...
+#install( TARGETS ${TARGET} RUNTIME DESTINATION bin )
+file(GLOB JSON_FILES ${CMAKE_SOURCE_DIR}/data/*.json)
+
+foreach(FILE ${JSON_FILES})
+	add_custom_command(TARGET tim
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/data
+		COMMAND ${CMAKE_COMMAND} -E copy ${FILE} ${CMAKE_CURRENT_BINARY_DIR}/data)
+endforeach()
+
+#file(COPY ${JSON_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/data)

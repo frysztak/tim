@@ -8,20 +8,23 @@
 
 using namespace cv;
 
-#define FOREGROUND_SECOND_PASS true
-
 class BenedekSziranyi
 {
+	friend class Tim;
+
 	private:
-		const float ForegroundThreshold = 8.5;
-		const float ForegroundThreshold2 = 0.7;
-		const uint8_t WindowSize = 10;
-		const float Tau = 15;
-		const float Kappa_min = 0.1;
-		const int ShadowModelUpdateRate = 150; // frames
-		const uint Qmin = 15'000;
-		const uint Qmax = 30'000;
-		bool ShadowDetectionEnabled = true;
+		float foregroundThreshold = 8.5;
+		float foregroundThreshold2 = 0.7;
+
+		bool windowPassEnabled = true;
+		uint8_t windowSize = 10;
+		float tau = 15;
+		float kappa_min = 0.1;
+
+		bool shadowDetectionEnabled = true;
+		int shadowModelUpdateRate = 150; // frames
+		uint Qmin = 15'000;
+		uint Qmax = 30'000;
 
 		struct Shadow
 		{

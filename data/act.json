@@ -1,0 +1,23 @@
+{
+	"video": "act.mp4",
+
+	"initialWeight": 0.05,
+	"initialVariance": 20,
+	"learningRate": 0.05,
+
+	"foregroundThreshold": 8.5,
+
+	"windowPassEnabled": true,
+	"windowSize": 10,
+	"foregroundThreshold2": 0.7,
+	"tau": 15,
+	"kappa_min": 0.1,
+
+	"shadowDetectionEnabled": true,
+	"shadowUpdateRate": 150,
+	"Qmin": 15000,
+	"Qmax": 30000,
+
+	"medianFilterSize": 0,
+	"morphFilterSize": 0
+}

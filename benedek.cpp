@@ -24,7 +24,7 @@ void BenedekSziranyi::ProcessFrame(InputArray _src, OutputArray _fg, OutputArray
 	// TODO: update microstructure model
 	
 	DetectForeground(inputFrame);
-	if (currentFrame % ShadowModelUpdateRate == 0)
+	if (currentFrame % shadowModelUpdateRate == 0)
 		UpdateShadowModel();
 
 	this->ForegroundMask.copyTo(_fg);
@@ -56,7 +56,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 		epsilon_bg += 0.5 * pow(u - gauss.miG, 2) / gauss.variance;
 		epsilon_bg += 0.5 * pow(v - gauss.miB, 2) / gauss.variance;
 
-		if (ShadowDetectionEnabled)
+		if (shadowDetectionEnabled)
 		{	
 			float epsilon_sh = 2 * log10(2 * M_PI);
 			epsilon_sh += log10(sqrt(shadowModel.L_variance));
@@ -67,7 +67,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 			epsilon_sh += 0.5 * pow(v - shadowModel.v_mean, 2) / shadowModel.v_variance;
 
 			bool addedToQ = false;	
-			if (epsilon_sh < ForegroundThreshold)
+			if (epsilon_sh < foregroundThreshold)
 			{
 				// this pixel is a shadow
 				ShadowMask.at<uint8_t>(idx) = 1;
@@ -76,7 +76,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 				shadowModel.Q.emplace_back(L, currentFrame);
 				addedToQ = true;
 			}
-			else if (epsilon_bg > ForegroundThreshold && epsilon_sh > ForegroundThreshold)
+			else if (epsilon_bg > foregroundThreshold && epsilon_sh > foregroundThreshold)
 			{
 				// it's a foreground
 				ForegroundMask.at<uint8_t>(idx) = 1;
@@ -86,7 +86,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 		}
 		else
 		{
-			if (epsilon_bg > ForegroundThreshold)
+			if (epsilon_bg > foregroundThreshold)
 			{
 				// it's a foreground
 				ForegroundMask.at<uint8_t>(idx) = 1;
@@ -113,7 +113,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 	shadowModel.L_mean = argmax(shadowModel.Q);
 	
 	// second run, using moving window
-	if (!FOREGROUND_SECOND_PASS)
+	if (!windowPassEnabled)
 		return;
 
 	Mat Vs, Fs_mask, FsD_mask;
@@ -128,14 +128,14 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 			int startX, endX, startY, endY;
 			// ideally, current pixel is in the middle of the window.
 			// but that's not always possible.
-			startX = c - WindowSize / 2;
+			startX = c - windowSize / 2;
 			if (startX < 0) startX = 0;
-			endX = startX + WindowSize;
+			endX = startX + windowSize;
 			if (endX > inputFrame.cols) endX = inputFrame.cols;
 
-			startY = r - WindowSize / 2;
+			startY = r - windowSize / 2;
 			if (startY < 0) startY = 0;
-			endY = startY + WindowSize;
+			endY = startY + windowSize;
 			if (endY > inputFrame.rows) endY = inputFrame.rows;
 
 			// in order to get Fs, we'll need Vs and a corresponding piece of foreground mask
@@ -166,7 +166,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 				float dv = v - v_;
 				float distance = sqrt(dL*dL + du*du + dv*dv);
 
-				if (distance < Tau)
+				if (distance < tau)
 					FsD_mask.at<uint8_t>(idx) = 1;
 			}
 
@@ -179,7 +179,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 			float Kappa_s1 = float(countNonZero(FsD_mask))/float(Fs_num);
 			float Kappa_s2 = float(Fs_num)/float((endX - startX)*(endY - startY));
 
-			float temp = 1 + exp(-(Kappa_s2 - Kappa_min/2.0));
+			float temp = 1 + exp(-(Kappa_s2 - kappa_min/2.0));
 			float Kappa_s = Kappa_s1 / temp;
 
 			float epsilon_fg = -log10(Kappa_s);
@@ -199,15 +199,15 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 			
 			epsilon_fg -= log10(eta);
 
-			ForegroundMask.at<uint8_t>(r, c) = epsilon_fg > ForegroundThreshold2 ? 1 : 0;
+			ForegroundMask.at<uint8_t>(r, c) = epsilon_fg > foregroundThreshold2 ? 1 : 0;
 		}
 	}
 }
 
 void BenedekSziranyi::InitShadowModel()
 {
-	Mat shadowMask = imread("/mnt/things/car detection/videos/act_shadows_mask.png", 0);
-	Mat shadow = imread("/mnt/things/car detection/videos/act_shadows.png");
+	Mat shadowMask = imread("/mnt/things/tim/masks/act_shadows_mask.png", 0);
+	Mat shadow = imread("/mnt/things/tim/masks/act_shadows.png");
 
 	cvtColor(shadow, shadow, COLOR_BGR2Luv);
 
@@ -224,31 +224,31 @@ void BenedekSziranyi::InitShadowModel()
 
 void BenedekSziranyi::UpdateShadowModel()
 {
-	std::cout << "\tUpdating shadow model..." << std::endl;
 	Mat wu(shadowModel.Wu_t, false);
 
 	Scalar mean, stdDev;
 	meanStdDev(wu, mean, stdDev);
 
-	std::cout << "#Wu = " << shadowModel.Wu_t.size() << std::endl;
-
-	float xi = shadowModel.Wu_t.size() / (float(FrameSize.area()) * ShadowModelUpdateRate * 150);
-	std::cout << "xi = " << xi << std::endl;
+	float xi = shadowModel.Wu_t.size() / (float(FrameSize.area()) * shadowModelUpdateRate * 150);
 
 	shadowModel.u_mean = (1.0 - xi)*shadowModel.u_mean + xi*mean[0];
 	shadowModel.v_mean = (1.0 - xi)*shadowModel.v_mean + xi*mean[0];
 	shadowModel.u_variance = (1.0 - xi)*shadowModel.u_variance + xi*stdDev[0]*stdDev[0];
 	shadowModel.v_variance = (1.0 - xi)*shadowModel.v_variance + xi*stdDev[0]*stdDev[0];
 
+	std::cout << "\tUpdating shadow model..." << std::endl;
+	std::cout << "#Wu = " << shadowModel.Wu_t.size() << std::endl;
+	std::cout << "xi = " << xi << std::endl;
 	std::cout << "u_mean = " << shadowModel.u_mean << ", v_mean = " << shadowModel.v_mean << std::endl;
 	std::cout << "u_variance = " << shadowModel.u_variance << ", v_variance = " << shadowModel.v_variance << std::endl;
+	std::cout << "L_mean = " << shadowModel.L_mean << ", L_variance = " << shadowModel.L_variance << std::endl;
 
 	shadowModel.Wu_t.clear();
 }
 
 void BenedekSziranyi::ToggleShadowDetection()
 {
-	ShadowDetectionEnabled = !ShadowDetectionEnabled;
+	shadowDetectionEnabled = !shadowDetectionEnabled;
 }
 
 const Mat& BenedekSziranyi::GetStaufferBackgroundModel()
