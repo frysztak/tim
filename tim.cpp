@@ -21,17 +21,17 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	auto json = Json::parse(jsonString, err);
 	auto videoFile = dataRootDir + "videos/" + json["video"].string_value();
-	benedek.foregroundThreshold = json["foregroundThreshold"].number_value();
-	benedek.shadowDetectionEnabled = json["shadowDetectionEnabled"].bool_value();
-	benedek.shadowModelUpdateRate = json["shadowUpdateRate"].int_value();
-	benedek.Qmin = json["Qmin"].int_value();
-	benedek.Qmax = json["Qmax"].int_value();
-	benedek.tau = json["tau"].number_value();
-	benedek.kappa_min = json["kappa_min"].number_value();
-
-	benedek.windowPassEnabled = json["windowPassEnabled"].bool_value();
-	benedek.windowSize = json["windowSize"].int_value();
-	benedek.foregroundThreshold2 = json["foregroundThreshold2"].number_value();
+//	benedek.foregroundThreshold = json["foregroundThreshold"].number_value();
+//	benedek.shadowDetectionEnabled = json["shadowDetectionEnabled"].bool_value();
+//	benedek.shadowModelUpdateRate = json["shadowUpdateRate"].int_value();
+//	benedek.Qmin = json["Qmin"].int_value();
+//	benedek.Qmax = json["Qmax"].int_value();
+//	benedek.tau = json["tau"].number_value();
+//	benedek.kappa_min = json["kappa_min"].number_value();
+//
+//	benedek.windowPassEnabled = json["windowPassEnabled"].bool_value();
+//	benedek.windowSize = json["windowSize"].int_value();
+//	benedek.foregroundThreshold2 = json["foregroundThreshold2"].number_value();
 
 	medianFilterSize = json["medianFilterSize"].int_value();
 	morphFilterSize = json["morphKernel"].int_value();
