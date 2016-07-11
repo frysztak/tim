@@ -3,6 +3,7 @@
 
 #include "benedek.h"
 #include "classifier.h"
+#include "shadows.h"
 #include <string>
 
 #define BENCHMARK_FRAMES_NUM 400
@@ -17,7 +18,7 @@ class Tim
 
 	private:
 		const string dataRootDir = "/mnt/things/tim/";
-		const double scaleFactor = .5;
+		const double scaleFactor = .25;
 
 		uint medianFilterSize = 0;
 		uint morphFilterSize = 0;
@@ -29,6 +30,7 @@ class Tim
 
 		BenedekSziranyi benedek;
 		Classifier classifier;
+		Shadows shadows;
 		VideoCapture videoCapture;
 		VideoWriter videoWriter;
 		Size frameSize;

@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include <opencv2/opencv.hpp>
+#include "siltp.h"
 
 using namespace cv;
 
@@ -30,6 +31,7 @@ typedef std::vector<Gaussian> GaussianMixture;
 class StaufferGrimson
 {
 	friend class BenedekSziranyi;
+	friend class Shadows;
 
 	private:
 		static int constexpr GaussiansPerPixel = 3;
@@ -42,7 +44,7 @@ class StaufferGrimson
 		std::vector<GaussianMixture> Gaussians;
 
 		// current background model
-		Mat Background;
+		Mat Background, BackgroundTexture, BackgroundProbability;
 		Mat ForegroundMask;
 
 		bool SubstractPixel(const Colour& rgb, GaussianMixture& gaussians);

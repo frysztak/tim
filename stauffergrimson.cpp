@@ -24,7 +24,9 @@ void StaufferGrimson::Init(const Size &size)
 	}
 
 	this->Background = Mat::zeros(size, CV_8UC3);
+	this->BackgroundTexture = Mat::zeros(Size(size.width - 4, size.height - 4), CV_64F);
 	this->ForegroundMask = Mat::zeros(size, CV_8U);
+	this->BackgroundProbability = Mat::zeros(size, CV_32FC1);
 }
 
 bool StaufferGrimson::SubstractPixel(const Colour& rgb, GaussianMixture& mixture)
@@ -163,6 +165,8 @@ void StaufferGrimson::Substract(InputArray _src)
 			Background.at<Colour>(idx) = Colour(gauss.miR, gauss.miG, gauss.miB);
 		}
 	}
+
+	SILTP_16x2(Background, BackgroundTexture);
 }
 
 void StaufferGrimson::Dump(int idx)

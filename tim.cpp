@@ -21,17 +21,17 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	auto json = Json::parse(jsonString, err);
 	auto videoFile = dataRootDir + "videos/" + json["video"].string_value();
-//	benedek.foregroundThreshold = json["foregroundThreshold"].number_value();
-//	benedek.shadowDetectionEnabled = json["shadowDetectionEnabled"].bool_value();
-//	benedek.shadowModelUpdateRate = json["shadowUpdateRate"].int_value();
-//	benedek.Qmin = json["Qmin"].int_value();
-//	benedek.Qmax = json["Qmax"].int_value();
-//	benedek.tau = json["tau"].number_value();
-//	benedek.kappa_min = json["kappa_min"].number_value();
-//
-//	benedek.windowPassEnabled = json["windowPassEnabled"].bool_value();
-//	benedek.windowSize = json["windowSize"].int_value();
-//	benedek.foregroundThreshold2 = json["foregroundThreshold2"].number_value();
+	benedek.foregroundThreshold = json["foregroundThreshold"].number_value();
+	benedek.shadowDetectionEnabled = json["shadowDetectionEnabled"].bool_value();
+	benedek.shadowModelUpdateRate = json["shadowUpdateRate"].int_value();
+	benedek.Qmin = json["Qmin"].int_value();
+	benedek.Qmax = json["Qmax"].int_value();
+	benedek.tau = json["tau"].number_value();
+	benedek.kappa_min = json["kappa_min"].number_value();
+
+	benedek.windowPassEnabled = json["windowPassEnabled"].bool_value();
+	benedek.windowSize = json["windowSize"].int_value();
+	benedek.foregroundThreshold2 = json["foregroundThreshold2"].number_value();
 
 	medianFilterSize = json["medianFilterSize"].int_value();
 	morphFilterSize = json["morphKernel"].int_value();
@@ -45,9 +45,21 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	auto width = videoCapture.get(CV_CAP_PROP_FRAME_WIDTH);
 	auto height = videoCapture.get(CV_CAP_PROP_FRAME_HEIGHT);
+	auto fps = videoCapture.get(CV_CAP_PROP_FPS);
+
+	if (record)
+	{
+		videoWriter.open("demo.avi", VideoWriter::fourcc('X','V','I','D'), fps, Size(width, height));
+		if (!videoWriter.isOpened())
+		{
+			cout << "could not open output video file" << endl;
+			return false;
+		}
+	}
 
 	this->frameSize = Size(width * scaleFactor, height * scaleFactor);
 	benedek.Init(this->frameSize);
+	shadows.Init(&benedek.bgs);
 
 	if (morphFilterSize != 0)
 		morphKernel = getStructuringElement(MORPH_ELLIPSE, Size(morphFilterSize, morphFilterSize));
@@ -77,35 +89,38 @@ void Tim::processFrames()
 			resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
 			
 			benedek.ProcessFrame(inputFrame, foregroundMask, shadowMask);
+			shadows.RemoveShadows(inputFrame, benedek.GetStaufferBackgroundModel(), shadowMask);
 
 			if (medianFilterSize != 0)
 				medianBlur(foregroundMask, foregroundMask, medianFilterSize);
-			if (morphFilterSize != 0)
-				morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, morphKernel);
+			//if (morphFilterSize != 0)
+			//	morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, morphKernel);
 
 			frameCount++;
 
 			if (!benchmarkMode)
 			{
-				Mat staufferForegroundMask, row1, row2;
+				Mat staufferForegroundMask, row1, row2, noShadow;
 
-				classifier.DrawBoundingBoxes(inputFrame, foregroundMask);
+				//classifier.DrawBoundingBoxes(inputFrame, foregroundMask);
 				displayFrame = inputFrame;
 				cvtColor(displayFrame, displayFrame, COLOR_Luv2BGR);
-
-				foregroundMask *= 255;
-				//foregroundMask += 127 * shadowMask;
-				cvtColor(foregroundMask, foregroundMask, COLOR_GRAY2BGR);
-
-				staufferForegroundMask = benedek.GetStaufferForegroundMask() * 255;
-				cvtColor(staufferForegroundMask, staufferForegroundMask, COLOR_GRAY2BGR);
+				cvtColor(foregroundMask * 255, foregroundMask, COLOR_GRAY2BGR);
 
 				hconcat(inputFrame, foregroundMask, row1);
 
 				bgModel = benedek.GetStaufferBackgroundModel();
 				cvtColor(bgModel, bgModel, COLOR_Luv2BGR);
-				hconcat(bgModel, staufferForegroundMask, row2);
 
+				Mat cols = Mat::zeros(shadowMask.rows, 2, CV_8U);
+				hconcat(cols, shadowMask, shadowMask);
+				hconcat(shadowMask, cols, shadowMask);
+				Mat rows = Mat::zeros(2, shadowMask.cols, CV_8U);
+				vconcat(rows, shadowMask, shadowMask);
+				vconcat(shadowMask, rows, shadowMask);
+				cvtColor(shadowMask, shadowMask, COLOR_GRAY2BGR);
+
+				hconcat(bgModel, shadowMask, row2);
 				vconcat(row1, row2, displayFrame);
 				imshow("OpenCV", displayFrame);
 				

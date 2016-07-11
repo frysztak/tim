@@ -24,8 +24,8 @@ void BenedekSziranyi::ProcessFrame(InputArray _src, OutputArray _fg, OutputArray
 	// TODO: update microstructure model
 	
 	DetectForeground(inputFrame);
-	if (currentFrame % shadowModelUpdateRate == 0)
-		UpdateShadowModel();
+//	if (currentFrame % shadowModelUpdateRate == 0)
+//		UpdateShadowModel();
 
 	this->ForegroundMask.copyTo(_fg);
 	this->ShadowMask.copyTo(_sh);
@@ -55,6 +55,7 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 		epsilon_bg += 0.5 * pow(L - gauss.miR, 2) / gauss.variance;
 		epsilon_bg += 0.5 * pow(u - gauss.miG, 2) / gauss.variance;
 		epsilon_bg += 0.5 * pow(v - gauss.miB, 2) / gauss.variance;
+
 
 		if (shadowDetectionEnabled)
 		{	
@@ -90,27 +91,32 @@ void BenedekSziranyi::DetectForeground(InputArray _src)
 			{
 				// it's a foreground
 				ForegroundMask.at<uint8_t>(idx) = 1;
-				shadowModel.Q.emplace_back(L, currentFrame);
+				bgs.BackgroundProbability.at<float>(idx) = epsilon_bg;
+			//	shadowModel.Q.emplace_back(L, currentFrame);
+			}
+			else
+			{
+				bgs.BackgroundProbability.at<float>(idx) = 0;
 			}
 		}
 	}
 
 	// update shadow model (L_mean)
-	if (shadowModel.Q.size() >= Qmin)
-	{
-		while (shadowModel.Q.size() > Qmax)
-		{
-			// find eldest timestamp
-			auto eldest = *std::min_element(shadowModel.Q.cbegin(), shadowModel.Q.cend(), 
-					[](const auto& A, const auto& B) { return std::get<1>(A) < std::get<1>(B); });
-			uint32_t timestamp = std::get<1>(eldest);
+	//if (shadowModel.Q.size() >= Qmin)
+	//{
+	//	while (shadowModel.Q.size() > Qmax)
+	//	{
+	//		// find eldest timestamp
+	//		auto eldest = *std::min_element(shadowModel.Q.cbegin(), shadowModel.Q.cend(), 
+	//				[](const auto& A, const auto& B) { return std::get<1>(A) < std::get<1>(B); });
+	//		uint32_t timestamp = std::get<1>(eldest);
 
-			auto endIt = shadowModel.Q.begin() + 1000;
-			shadowModel.Q.erase(std::remove_if(shadowModel.Q.begin(), endIt, 
-					[=](const auto& A) { return std::get<1>(A) == timestamp; }), endIt);
-		}
-	}
-	shadowModel.L_mean = argmax(shadowModel.Q);
+	//		auto endIt = shadowModel.Q.begin() + 1000;
+	//		shadowModel.Q.erase(std::remove_if(shadowModel.Q.begin(), endIt, 
+	//				[=](const auto& A) { return std::get<1>(A) == timestamp; }), endIt);
+	//	}
+	//}
+	//shadowModel.L_mean = argmax(shadowModel.Q);
 	
 	// second run, using moving window
 	if (!windowPassEnabled)

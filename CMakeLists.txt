@@ -7,7 +7,7 @@ find_package(OpenCV REQUIRED)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${OpenCV_INCLUDE_DIRS})
 
 ## Find all source files to be compiled into object files
-file(GLOB SOURCES *.cpp)
+file(GLOB SOURCES *.cpp gco/*.cpp)
 
 ## C++ compiler options
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14")
