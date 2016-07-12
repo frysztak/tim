@@ -10,7 +10,7 @@ using namespace cv;
 class Shadows
 {
 	private:
-		const uint8_t thresh1 = 6;
+		const uint8_t thresh1 = 3;
 		const uint8_t thresh2 = 7;
 		StaufferGrimson* gmm = nullptr;
 

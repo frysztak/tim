@@ -18,7 +18,7 @@ class Tim
 
 	private:
 		const string dataRootDir = "/mnt/things/tim/";
-		const double scaleFactor = .25;
+		const double scaleFactor = .5;
 
 		uint medianFilterSize = 0;
 		uint morphFilterSize = 0;

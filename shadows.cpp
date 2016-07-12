@@ -29,7 +29,7 @@ void Shadows::RemoveShadows(InputArray _src, InputArray _bg, OutputArray _dst)
 					frameSILTP.at<uint32_t>(i-2, j-2));
 			uint8_t bg = gmm->Background.at<Colour>(i, j).x; // L
 			uint8_t fg = frame.at<Colour>(i, j).x; // L
-			if (distance < thresh1 || frameSILTP.at<uint32_t>(i-2, j-2) < thresh2)
+			if (distance < thresh1)// || frameSILTP.at<uint32_t>(i-2, j-2) < thresh2)
 			{
 				if (fg/float(bg) <= 0.9)
 				{
