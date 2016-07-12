@@ -30,17 +30,29 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 
 	cvtColor(src, src, COLOR_BGR2Luv);
 
-	for (int idx = 0; idx < src.rows * src.cols; idx++)
+	for (int row = 0; row < src.rows; ++row)
 	{
-		auto& pixel = src.at<Colour>(idx);
-			
-		GaussianMixture& mog = gaussians[idx];
-		bool foreground = processPixel(pixel, mog);
-		foregroundMask.at<uint8_t>(idx) = foreground ? 1 : 0;
+		uint8_t *foregroundMaskPtr = foregroundMask.ptr<uint8_t>(row);
+		uint8_t *currentBackgroundPtr = currentBackground.ptr<uint8_t>(row);
+		uint8_t *srcPtr = src.ptr<uint8_t>(row);
+		int idx = src.cols * row; 
 
-		// update current background model (or rather, background image)
-		auto& gauss = mog[0];
-		currentBackground.at<Colour>(idx) = Colour(gauss.miR, gauss.miG, gauss.miB);
+		for (int col = 0; col < src.cols; col++, idx++)
+		{
+			uint8_t x = *srcPtr++;
+			uint8_t y = *srcPtr++;
+			uint8_t z = *srcPtr++;
+				
+			GaussianMixture& mog = gaussians[idx];
+			bool foreground = processPixel(Colour(x,y,z), mog);
+			*foregroundMaskPtr++ = uint8_t(foreground ? 1 : 0);
+
+			// update current background model (or rather, background image)
+			auto& gauss = mog[0];
+			*currentBackgroundPtr++ = gauss.miR;
+			*currentBackgroundPtr++ = gauss.miG;
+			*currentBackgroundPtr++ = gauss.miB;
+		}
 	}
 
 	SILTP_16x2(currentBackground, currentTexture);

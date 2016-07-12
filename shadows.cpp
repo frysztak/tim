@@ -26,18 +26,25 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgTextu
 	//cv::FileStorage fs("fgTexture.yml", cv::FileStorage::WRITE);
 	//fs << "fgTexture" << frameTexture;
 
-	for (int i = 2; i < frame.rows - 2; i++)
+	for (int row = 2; row < frame.rows - 2; ++row)
 	{
-		for (int j = 2; j < frame.cols - 2; j++)
-		{
-			uint8_t distance = hamming_distance(backgroundTexture.at<uint32_t>(i-2, j-2), 
-					frameTexture.at<uint32_t>(i-2, j-2));
-			uint8_t bg = background.at<Background::Colour>(i, j).x; // L
-			uint8_t fg = frame.at<Background::Colour>(i, j).x; // L
+		uint32_t *bgTexturePtr = backgroundTexture.ptr<uint32_t>(row - 2);
+		uint32_t *fgTexturePtr = frameTexture.ptr<uint32_t>(row - 2);
+		uint8_t *shadowMaskPtr = shadowMask.ptr<uint8_t>(row - 2);
+		uint8_t *bgLPtr = background.ptr<uint8_t>(row);
+		uint8_t *fgLPtr = frame.ptr<uint8_t>(row);
 
-			shadowMask.at<uint8_t>(i-2, j-2) = 
-				((distance < distanceThreshold || frameTexture.at<uint32_t>(i-2, j-2) < absoluteThreshold) && 
-				 fg/float(bg) <= 0.9);
+		for (int col = 2; col < frame.cols - 2; col++)
+		{
+			uint32_t bgTexture = *bgTexturePtr++;
+			uint32_t fgTexture = *fgTexturePtr++;
+
+			uint8_t distance = hamming_distance(bgTexture, fgTexture);
+			uint8_t bg = *bgLPtr; bgLPtr += 3;
+			uint8_t fg = *fgLPtr; fgLPtr += 3; 
+
+			*shadowMaskPtr++ = 
+				((distance < distanceThreshold || fgTexture < absoluteThreshold) && fg/float(bg) <= 0.9);
 		}
 	}
 
@@ -153,8 +160,14 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgTextu
 	gc.expansion();
 	//printf("After optimization energy is %lld\n",gc.compute_energy());
 
-	for (int idx = 0; idx < frameTexture.cols * frameTexture.rows; idx++)
-		shadowMask.at<uint8_t>(idx) = gc.whatLabel(idx) * (255/2);
+	for (int row = 0; row < shadowMask.rows; ++row)
+	{
+		uint8_t *shadowMaskPtr = shadowMask.ptr<uint8_t>(row);
+		int idx = shadowMask.cols * row; 
+
+		for (int col = 0; col < shadowMask.cols; col++, idx++)
+			*shadowMaskPtr++ = gc.whatLabel(idx) * (255/2);
+	}
 
 //	imshow("shadowMask", shadowMask * 255);
 	//imshow("prob", gmm->BackgroundProbability);
