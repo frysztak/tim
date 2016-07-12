@@ -148,9 +148,9 @@ bool Background::processPixel(const Colour& rgb, GaussianMixture& mixture)
 
 	float epsilon_bg = 2 * log10(2 * M_PI);
 	epsilon_bg += 3 * log10(sqrt(gauss.variance));
-	epsilon_bg += 0.5 * pow(L - gauss.miR, 2) / gauss.variance;
-	epsilon_bg += 0.5 * pow(u - gauss.miG, 2) / gauss.variance;
-	epsilon_bg += 0.5 * pow(v - gauss.miB, 2) / gauss.variance;
+	epsilon_bg += 0.5 * (L - gauss.miR)*(L - gauss.miR) / gauss.variance;
+	epsilon_bg += 0.5 * (u - gauss.miG)*(u - gauss.miG) / gauss.variance;
+	epsilon_bg += 0.5 * (v - gauss.miB)*(v - gauss.miB) / gauss.variance;
 
 	return epsilon_bg > foregroundThreshold;
 }
