@@ -1,7 +1,7 @@
 #ifndef TIM_H
 #define TIM_H
 
-#include "benedek.h"
+#include "background.h"
 #include "classifier.h"
 #include "shadows.h"
 #include <string>
@@ -28,7 +28,7 @@ class Tim
 		uint32_t frameCount = 0;
 		Mat morphKernel;
 
-		BenedekSziranyi benedek;
+		Background background;
 		Classifier classifier;
 		Shadows shadows;
 		VideoCapture videoCapture;

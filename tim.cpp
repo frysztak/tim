@@ -21,17 +21,17 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	auto json = Json::parse(jsonString, err);
 	auto videoFile = dataRootDir + "videos/" + json["video"].string_value();
-	benedek.foregroundThreshold = json["foregroundThreshold"].number_value();
-	benedek.shadowDetectionEnabled = json["shadowDetectionEnabled"].bool_value();
-	benedek.shadowModelUpdateRate = json["shadowUpdateRate"].int_value();
-	benedek.Qmin = json["Qmin"].int_value();
-	benedek.Qmax = json["Qmax"].int_value();
-	benedek.tau = json["tau"].number_value();
-	benedek.kappa_min = json["kappa_min"].number_value();
+	//benedek.foregroundThreshold = json["foregroundThreshold"].number_value();
+	//benedek.shadowDetectionEnabled = json["shadowDetectionEnabled"].bool_value();
+	//benedek.shadowModelUpdateRate = json["shadowUpdateRate"].int_value();
+	//benedek.Qmin = json["Qmin"].int_value();
+	//benedek.Qmax = json["Qmax"].int_value();
+	//benedek.tau = json["tau"].number_value();
+	//benedek.kappa_min = json["kappa_min"].number_value();
 
-	benedek.windowPassEnabled = json["windowPassEnabled"].bool_value();
-	benedek.windowSize = json["windowSize"].int_value();
-	benedek.foregroundThreshold2 = json["foregroundThreshold2"].number_value();
+	//benedek.windowPassEnabled = json["windowPassEnabled"].bool_value();
+	//benedek.windowSize = json["windowSize"].int_value();
+	//benedek.foregroundThreshold2 = json["foregroundThreshold2"].number_value();
 
 	medianFilterSize = json["medianFilterSize"].int_value();
 	morphFilterSize = json["morphKernel"].int_value();
@@ -58,8 +58,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	}
 
 	this->frameSize = Size(width * scaleFactor, height * scaleFactor);
-	benedek.Init(this->frameSize);
-	shadows.Init(&benedek.bgs);
+	background.init(this->frameSize);
 
 	if (morphFilterSize != 0)
 		morphKernel = getStructuringElement(MORPH_ELLIPSE, Size(morphFilterSize, morphFilterSize));
@@ -77,7 +76,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 void Tim::processFrames()
 {
-	Mat inputFrame, foregroundMask, shadowMask, displayFrame, bgModel;
+	Mat inputFrame, foregroundMask = Mat::zeros(frameSize, CV_8U), shadowMask, displayFrame, bgModel;
 
 	auto t1 = std::chrono::steady_clock::now();
 
@@ -88,8 +87,11 @@ void Tim::processFrames()
 			videoCapture >> inputFrame;
 			resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
 			
-			benedek.ProcessFrame(inputFrame, foregroundMask, shadowMask);
-			shadows.RemoveShadows(inputFrame, benedek.GetStaufferBackgroundModel(), shadowMask);
+			background.processFrame(inputFrame, foregroundMask);
+
+			shadowMask = Mat::zeros(Size(frameSize.width - 4, frameSize.height - 4), CV_8U);
+			shadows.removeShadows(inputFrame, background.getCurrentBackground(), background.getCurrentTexture(), 
+					foregroundMask, shadowMask);
 
 			if (medianFilterSize != 0)
 				medianBlur(foregroundMask, foregroundMask, medianFilterSize);
@@ -100,16 +102,16 @@ void Tim::processFrames()
 
 			if (!benchmarkMode)
 			{
-				Mat staufferForegroundMask, row1, row2, noShadow;
+				Mat foregroundMaskBGR, row1, row2, noShadow;
 
 				//classifier.DrawBoundingBoxes(inputFrame, foregroundMask);
 				displayFrame = inputFrame;
 				cvtColor(displayFrame, displayFrame, COLOR_Luv2BGR);
-				cvtColor(foregroundMask * 255, foregroundMask, COLOR_GRAY2BGR);
+				cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 
-				hconcat(inputFrame, foregroundMask, row1);
+				hconcat(inputFrame, foregroundMaskBGR, row1);
 
-				bgModel = benedek.GetStaufferBackgroundModel();
+				bgModel = background.getCurrentBackground();
 				cvtColor(bgModel, bgModel, COLOR_Luv2BGR);
 
 				Mat cols = Mat::zeros(shadowMask.rows, 2, CV_8U);
@@ -137,8 +139,8 @@ void Tim::processFrames()
 			break;
 		else if (key == ' ')
 			paused = !paused;
-		else if (key == 's')
-			benedek.ToggleShadowDetection();
+	//	else if (key == 's')
+	//		benedek.ToggleShadowDetection();
 
 	}
 

@@ -39,6 +39,7 @@ flags = [
     '-I/home/sebastian/programming/stauffer-grimson/src',
     '-Wall',
     '-Wextra',
+    '-std=c++11',
     '-isystem', '/usr/include/opencv',
 ]
 

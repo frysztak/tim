@@ -1,41 +1,43 @@
 #include "shadows.h"
+#include "background.h"
 #include "siltp.h"
 #include "gco/GCoptimization.h"
 
-void Shadows::Init(StaufferGrimson* gmm)
+GCoptimization::EnergyTermType Shadows::MySmoothCostFunctor::compute(GCoptimization::SiteID s1, GCoptimization::SiteID s2, 
+		GCoptimization::LabelID l1, GCoptimization::LabelID l2)
 {
-	this->gmm = gmm;
+	if ((l1 - l2) * (l1 - l2) <= 2) 
+		return (l1 - l2) * (l1 - l2);
+	else 
+		return 2;
 }
 
-void Shadows::RemoveShadows(InputArray _src, InputArray _bg, OutputArray _dst)
+Shadows::Shadows() : distanceThreshold(3), absoluteThreshold(7)
 {
-	Mat frame = _src.getMat();
-	Mat bg = _bg.getMat();
+}
 
-	Mat frameSILTP, bgSILTP, shadowMask, shadowMask2;
-	SILTP_16x2(frame, frameSILTP);
-	fct.setFgTexture(frameSILTP);
-	shadowMask = Mat::zeros(frameSILTP.size(), CV_8U);
-	shadowMask2 = Mat::zeros(frame.size(), CV_8U);
+void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgTexture, InputArray _fgMask, OutputArray _dst)
+{
+	Mat frame = _src.getMat(), background = _bg.getMat(), backgroundTexture = _bgTexture.getMat(), 
+		foregroundMask = _fgMask.getMat(), shadowMask = _dst.getMat(), frameTexture;
+
+	SILTP_16x2(frame, frameTexture);
 
 	//cv::FileStorage fs("fgTexture.yml", cv::FileStorage::WRITE);
-	//fs << "fgTexture" << frameSILTP;
+	//fs << "fgTexture" << frameTexture;
 
 	for (int i = 2; i < frame.rows - 2; i++)
 	{
 		for (int j = 2; j < frame.cols - 2; j++)
 		{
-			uint8_t distance = hamming_distance(gmm->BackgroundTexture.at<uint32_t>(i-2, j-2), 
-					frameSILTP.at<uint32_t>(i-2, j-2));
-			uint8_t bg = gmm->Background.at<Colour>(i, j).x; // L
-			uint8_t fg = frame.at<Colour>(i, j).x; // L
-			if (distance < thresh1)// || frameSILTP.at<uint32_t>(i-2, j-2) < thresh2)
-			{
-				if (fg/float(bg) <= 0.9)
-				{
-					shadowMask.at<uint8_t>(i-2, j-2) = 1;
-				}
-			}
+			uint8_t distance = hamming_distance(backgroundTexture.at<uint32_t>(i-2, j-2), 
+					frameTexture.at<uint32_t>(i-2, j-2));
+			uint8_t bg = background.at<Background::Colour>(i, j).x; // L
+			uint8_t fg = frame.at<Background::Colour>(i, j).x; // L
+
+			shadowMask.at<uint8_t>(i-2, j-2) = 
+				((distance < distanceThreshold || frameTexture.at<uint32_t>(i-2, j-2) < absoluteThreshold) && 
+				 fg/float(bg) <= 0.9);
 		}
 	}
 
@@ -110,17 +112,17 @@ void Shadows::RemoveShadows(InputArray _src, InputArray _bg, OutputArray _dst)
 
 	// MRF
 	const int num_labels = 3;
-	GCoptimizationGridGraph gc(frameSILTP.cols, frameSILTP.rows, num_labels);
-	gc.setSmoothCostFunctor(&this->fct);
+	GCoptimizationGridGraph gc(frameTexture.cols, frameTexture.rows, num_labels);
+	gc.setSmoothCostFunctor(&smoothFunctor);
 
 	//Set the pixel-label probability
 	for (int r = 2; r < frame.rows - 2; r++)
 	{
 		for (int c = 2; c < frame.cols - 2; c++)
 		{
-			int idx = frameSILTP.size().width*(r-2) + (c-2);
+			int idx = frameTexture.size().width*(r-2) + (c-2);
 
-			if (gmm->BackgroundProbability.at<float>(r, c) == 0)
+			if (foregroundMask.at<uint8_t>(r, c) == 0)
 			{
 				// we're pretty sure this pixel belongs to the background
 				gc.setDataCost(idx, 0, -1.*log(0.95));
@@ -151,12 +153,11 @@ void Shadows::RemoveShadows(InputArray _src, InputArray _bg, OutputArray _dst)
 	gc.expansion();
 	//printf("After optimization energy is %lld\n",gc.compute_energy());
 
-	for (int idx = 0; idx < frameSILTP.cols * frameSILTP.rows; idx++)
+	for (int idx = 0; idx < frameTexture.cols * frameTexture.rows; idx++)
 		shadowMask.at<uint8_t>(idx) = gc.whatLabel(idx) * (255/2);
 
-	shadowMask.copyTo(_dst);
 //	imshow("shadowMask", shadowMask * 255);
 	//imshow("prob", gmm->BackgroundProbability);
-	//imshow("fg texture", frameSILTP);
+	//imshow("fg texture", frameTexture);
 	//imshow("shadowMask2", shadowMask2 * 255);
 }
