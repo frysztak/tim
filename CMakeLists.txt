@@ -10,7 +10,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${OpenCV_INCLUDE_DIRS})
 file(GLOB SOURCES *.cpp gco/*.cpp)
 
 ## C++ compiler options
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -Wa,--gstabs -save-temps")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
 
