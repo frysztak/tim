@@ -56,6 +56,7 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 	}
 
 	SILTP_16x2(currentBackground, currentTexture);
+	medianBlur(foregroundMask, foregroundMask, 3);
 }
 
 bool Background::processPixel(const Colour& rgb, GaussianMixture& mixture)

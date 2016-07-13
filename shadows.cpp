@@ -1,19 +1,28 @@
 #include "shadows.h"
 #include "background.h"
 #include "siltp.h"
-#include "gco/GCoptimization.h"
+#include "GridCut/AlphaExpansion_2D_4C.h"
 
-GCoptimization::EnergyTermType Shadows::MySmoothCostFunctor::compute(GCoptimization::SiteID s1, GCoptimization::SiteID s2, 
-		GCoptimization::LabelID l1, GCoptimization::LabelID l2)
+Shadows::Shadows(const Size& size) : distanceThreshold(3), absoluteThreshold(7), numLabels(3)
 {
-	if ((l1 - l2) * (l1 - l2) <= 2) 
-		return (l1 - l2) * (l1 - l2);
-	else 
-		return 2;
+	dataCosts = new int[size.area()*numLabels];
+
+	smoothnessCosts = new int*[size.area()*2];
+
+	for(int y = 0; y < size.height; y++)
+	for(int x = 0; x < size.width; x++)
+	{    
+		const int xy = x+y*size.width;
+		
+		smoothnessCosts[xy*2+0] = new int[numLabels*numLabels];
+		smoothnessCosts[xy*2+1] = new int[numLabels*numLabels];
+	}
 }
 
-Shadows::Shadows() : distanceThreshold(3), absoluteThreshold(7)
+Shadows::~Shadows()
 {
+	delete[] dataCosts;
+	delete[] smoothnessCosts;
 }
 
 void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgTexture, InputArray _fgMask, OutputArray _dst)
@@ -118,47 +127,63 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgTextu
 	//bitwise_and(shadowMask, shadowMask2, shadowMask);
 
 	// MRF
-	const int num_labels = 3;
-	GCoptimizationGridGraph gc(frameTexture.cols, frameTexture.rows, num_labels);
-	gc.setSmoothCostFunctor(&smoothFunctor);
+	const int width = frameTexture.cols;
+	const int height = frameTexture.rows;
 
 	//Set the pixel-label probability
-	for (int r = 2; r < frame.rows - 2; r++)
+	for(int y = 0; y < height; y++)
+	for(int x = 0; x < width; x++)
 	{
-		for (int c = 2; c < frame.cols - 2; c++)
+		if (foregroundMask.at<uint8_t>(y + 2, x + 2) == 0)
 		{
-			int idx = frameTexture.size().width*(r-2) + (c-2);
-
-			if (foregroundMask.at<uint8_t>(r, c) == 0)
+			// pretty sure this pixel belongs to the background
+			dataCosts[(x+y*width)*numLabels+0] = -10*log(0.9);
+			dataCosts[(x+y*width)*numLabels+1] = -10*log(0.1);
+			dataCosts[(x+y*width)*numLabels+2] = -10*log(0.2);
+		}
+		else
+		{
+			if(shadowMask.at<uint8_t>(y, x) == 1)
 			{
-				// we're pretty sure this pixel belongs to the background
-				gc.setDataCost(idx, 0, -1.*log(0.95));
-				gc.setDataCost(idx, 1, -1.*log(0.1));
-				gc.setDataCost(idx, 2, -1.*log(0.2));
+				// shadow
+				dataCosts[(x+y*width)*numLabels+0] = -10*log(0.1);
+				dataCosts[(x+y*width)*numLabels+1] = -10*log(0.7);
+				dataCosts[(x+y*width)*numLabels+2] = -10*log(0.15);
 			}
 			else
 			{
-				if(shadowMask.at<uint8_t>(r - 2, c - 2) == 1)
-				{
-					// shadow
-					gc.setDataCost(idx, 0, -1.*log(0.1));
-					gc.setDataCost(idx, 1, -1.*log(0.7));
-					gc.setDataCost(idx, 2, -1.*log(0.2));
-				}
-				else
-				{
-					// foreground
-					gc.setDataCost(idx, 0, -1.*log(0.1));
-					gc.setDataCost(idx, 1, -1.*log(0.3));
-					gc.setDataCost(idx, 2, -1.*log(0.7));
-				}
+				// foreground
+				dataCosts[(x+y*width)*numLabels+0] = -10*log(0.1);	
+				dataCosts[(x+y*width)*numLabels+1] = -10*log(0.3);
+				dataCosts[(x+y*width)*numLabels+2] = -10*log(0.7);
 			}
 		}
 	}
 
-	//printf("Before optimization energy is %lld\n",gc.compute_energy());
-	gc.expansion();
-	//printf("After optimization energy is %lld\n",gc.compute_energy());
+	for(int y = 0; y < height; y++)
+	for(int x = 0; x < width; x++)
+	{    
+	  const int xy = x+y*width;
+	
+	  for(int label=0;label<numLabels;label++)
+	  for(int otherLabel=0;otherLabel<numLabels;otherLabel++)
+	  {
+	    #define WEIGHT(A) (1+1000*std::exp(-((A)*(A))/5))
+	
+	    smoothnessCosts[xy*2+0][label+otherLabel*numLabels] = (label!=otherLabel && frameTexture.at<uint32_t>(y,x) > 1000) ? 25 : 0;
+	    smoothnessCosts[xy*2+1][label+otherLabel*numLabels] = (label!=otherLabel && frameTexture.at<uint32_t>(y,x) > 1000) ? 25 : 0;
+
+	//	smoothnessCosts[xy*2+0][label+otherLabel*numLabels] = (x<width-1  && label!=otherLabel) ? WEIGHT(frameTexture.at<uint8_t>(y,x+1) - frameTexture.at<uint8_t>(y,x)) : 0;
+	//	smoothnessCosts[xy*2+1][label+otherLabel*numLabels] = (y<height-1 && label!=otherLabel) ? WEIGHT(frameTexture.at<uint8_t>(y+1,x) - frameTexture.at<uint8_t>(y,x)) : 0;
+	    #undef WEIGHT
+	  }
+	}
+
+	typedef AlphaExpansion_2D_4C<int,int,int> Expansion; 
+	Expansion* expansion = new Expansion(width,height,numLabels,dataCosts,smoothnessCosts);
+	expansion->perform();
+	
+	int* labeling = expansion->get_labeling();
 
 	for (int row = 0; row < shadowMask.rows; ++row)
 	{
@@ -166,8 +191,10 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgTextu
 		int idx = shadowMask.cols * row; 
 
 		for (int col = 0; col < shadowMask.cols; col++, idx++)
-			*shadowMaskPtr++ = gc.whatLabel(idx) * (255/2);
+			*shadowMaskPtr++ = labeling[idx] * (255/2);
 	}
+
+	//delete expansion;
 
 //	imshow("shadowMask", shadowMask * 255);
 	//imshow("prob", gmm->BackgroundProbability);

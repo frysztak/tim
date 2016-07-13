@@ -59,6 +59,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	this->frameSize = Size(width * scaleFactor, height * scaleFactor);
 	background.init(this->frameSize);
+	shadows = new Shadows(Size(frameSize.width - 4, frameSize.height - 4));
 
 	if (morphFilterSize != 0)
 		morphKernel = getStructuringElement(MORPH_ELLIPSE, Size(morphFilterSize, morphFilterSize));
@@ -90,7 +91,7 @@ void Tim::processFrames()
 			background.processFrame(inputFrame, foregroundMask);
 
 			shadowMask = Mat::zeros(Size(frameSize.width - 4, frameSize.height - 4), CV_8U);
-			shadows.removeShadows(inputFrame, background.getCurrentBackground(), background.getCurrentTexture(), 
+			shadows->removeShadows(inputFrame, background.getCurrentBackground(), background.getCurrentTexture(), 
 					foregroundMask, shadowMask);
 
 			if (medianFilterSize != 0)

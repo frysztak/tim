@@ -30,7 +30,7 @@ class Tim
 
 		Background background;
 		Classifier classifier;
-		Shadows shadows;
+		Shadows* shadows;
 		VideoCapture videoCapture;
 		VideoWriter videoWriter;
 		Size frameSize;
