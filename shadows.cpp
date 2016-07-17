@@ -3,7 +3,7 @@
 #include "siltp.h"
 #include "GridCut/AlphaExpansion_2D_4C.h"
 
-Shadows::Shadows(const Size& size) : distanceThreshold(7), absoluteThreshold(8), numLabels(3)
+Shadows::Shadows(const Size& size) : distanceThreshold(7), absoluteThreshold(8), stdDevCoeff(0.2), numLabels(3)
 {
 	dataCosts = new int[size.area()*numLabels];
 
@@ -61,13 +61,12 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgTextu
 	meanStdDev(D_S, mean_S, stdDev_S, foregroundMask);
 	meanStdDev(R, mean_V, stdDev_V, foregroundMask);
 
-	const double a = 0.15;
-	float beta1 = mean_V[0] + a*stdDev_V[0];
-	float beta2 = mean_V[0] - a*stdDev_V[0];
-	float alpha1_H = mean_H[0] + a*stdDev_H[0];
-	float alpha2_H = mean_H[0] - a*stdDev_H[0];
-	float alpha1_S = mean_S[0] + a*stdDev_S[0];
-	float alpha2_S = mean_S[0] - a*stdDev_S[0];
+	//float beta1 = mean_V[0] + a*stdDev_V[0];
+	float beta2 = mean_V[0] - stdDevCoeff*stdDev_V[0];
+	float alpha1_H = mean_H[0] + stdDevCoeff*stdDev_H[0];
+	float alpha2_H = mean_H[0] - stdDevCoeff*stdDev_H[0];
+	float alpha1_S = mean_S[0] + stdDevCoeff*stdDev_S[0];
+	float alpha2_S = mean_S[0] - stdDevCoeff*stdDev_S[0];
 
 	//std::cout << "beta1: " << beta1 << ", beta2: " << beta2 << std::endl;
 	//std::cout << "mean_H: " << mean_H[0] << ", alpha1_H: " << alpha1_H << ", alpha2_H: " << alpha2_H << std::endl;

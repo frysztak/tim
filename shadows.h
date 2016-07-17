@@ -8,8 +8,12 @@ using namespace cv;
 class Shadows
 {
 	private:
-		const uint8_t distanceThreshold;
-		const uint8_t absoluteThreshold;
+		// texture-related coeffients
+		const int distanceThreshold;
+		const int absoluteThreshold;
+		// colour-related coeffient
+		const float stdDevCoeff;
+		// MRF
 		const int numLabels;
 		int** smoothnessCosts = nullptr;
 		int* dataCosts = nullptr;
