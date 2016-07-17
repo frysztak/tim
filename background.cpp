@@ -21,7 +21,7 @@ void Background::init(const Size& size)
 	}
 
 	currentBackground = Mat::zeros(size, CV_8UC3);
-	currentTexture = Mat::zeros(Size(size.width - 4, size.height - 4), CV_32S);
+	currentTexture = Mat::zeros(Size(size.width - 4, size.height - 4), CV_16U);
 }
 
 void Background::processFrame(InputArray _src, OutputArray _foregroundMask)

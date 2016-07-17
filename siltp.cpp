@@ -47,11 +47,11 @@ void SILTP_16x2(InputArray _src, OutputArray _dst)
 	Mat src = _src.getMat();
 
 	cvtColor(src, src, COLOR_BGR2GRAY);
-	Mat texture = Mat::zeros(src.rows - 4, src.cols - 4, CV_32S);
+	Mat texture = Mat::zeros(src.rows - 4, src.cols - 4, CV_16U);
 
 	auto compare = [](uint8_t center, uint8_t neighbor) -> uint8_t
 	{
-		float tau = 0.04;
+		float tau = 0.03;
 
 		if (neighbor > (1.0 + tau)*center)
 			return 1;
@@ -84,7 +84,7 @@ void SILTP_16x2(InputArray _src, OutputArray _dst)
 			code |= compare(center, src.at<uint8_t>(i,j-2)) << 3;
 			code |= compare(center, src.at<uint8_t>(i-1,j-2)) << 1;
 			
-			texture.at<uint32_t>(i-2,j-2) = code;
+			texture.at<uint16_t>(i-2,j-2) = code / 255.0;
 		}
 	}
 
