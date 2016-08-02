@@ -4,20 +4,18 @@
 	"initialWeight": 0.05,
 	"initialVariance": 20,
 	"learningRate": 0.05,
-
 	"foregroundThreshold": 8.5,
 
-	"windowPassEnabled": false,
-	"windowSize": 10,
-	"foregroundThreshold2": 0.7,
-	"tau": 15,
-	"kappa_min": 0.1,
-
-	"shadowDetectionEnabled": false,
-	"shadowUpdateRate": 150,
-	"Qmin": 15000,
-	"Qmax": 30000,
+	"autoGradientThreshold": true,
+	"edgeCorrection": false, 
+	"lambda": 0.04,
+	"tau": 0.20,
+	"alpha": 0.00621,
+	"gradientThreshold": 1.6,
+	"gradientThresholdMultiplier": 1.0,
+	"luminanceThreshold": 1.0,
+	"minSegmentSize": 60,
 
 	"medianFilterSize": 0,
-	"morphFilterSize": 8 
+	"morphFilterSize": 0 
 }

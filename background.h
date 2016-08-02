@@ -31,7 +31,7 @@ class Background
 		void init(const Size& size);
 		void processFrame(InputArray _src, OutputArray _foregroundMask);
 		const Mat& getCurrentBackground() const;
-		const Mat& getCurrentTexture() const;
+		const Mat& getCurrentStdDev() const;
 
 	private:
 		const float initialVariance;
@@ -40,7 +40,7 @@ class Background
 		const float learningRate;
 		const float foregroundThreshold;
 
-		Mat currentBackground, currentTexture;
+		Mat currentBackground, currentStdDev;
 		std::vector<GaussianMixture> gaussians;
 
 		bool processPixel(const Colour& rgb, GaussianMixture& mixture);

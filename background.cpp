@@ -1,5 +1,4 @@
 #include "background.h"
-#include "siltp.h"
 
 Background::Background() :
 	initialVariance(20),
@@ -21,19 +20,18 @@ void Background::init(const Size& size)
 	}
 
 	currentBackground = Mat::zeros(size, CV_8UC3);
-	currentTexture = Mat::zeros(Size(size.width - 4, size.height - 4), CV_16U);
+	currentStdDev = Mat::zeros(size, CV_32F);
 }
 
 void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 {
 	Mat src = _src.getMat(), foregroundMask = _foregroundMask.getMat();
 
-	cvtColor(src, src, COLOR_BGR2Luv);
-
 	for (int row = 0; row < src.rows; ++row)
 	{
 		uint8_t *foregroundMaskPtr = foregroundMask.ptr<uint8_t>(row);
 		uint8_t *currentBackgroundPtr = currentBackground.ptr<uint8_t>(row);
+		float *currentStdDevPtr = currentStdDev.ptr<float>(row);
 		uint8_t *srcPtr = src.ptr<uint8_t>(row);
 		int idx = src.cols * row; 
 
@@ -45,17 +43,17 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 				
 			GaussianMixture& mog = gaussians[idx];
 			bool foreground = processPixel(Colour(x,y,z), mog);
-			*foregroundMaskPtr++ = uint8_t(foreground ? 1 : 0);
+			*foregroundMaskPtr++ = foreground ? 1 : 0;
 
 			// update current background model (or rather, background image)
 			auto& gauss = mog[0];
 			*currentBackgroundPtr++ = gauss.miR;
 			*currentBackgroundPtr++ = gauss.miG;
 			*currentBackgroundPtr++ = gauss.miB;
+			*currentStdDevPtr++ = sqrt(gauss.variance);
 		}
 	}
 
-	SILTP_16x2(currentBackground, currentTexture);
 	medianBlur(foregroundMask, foregroundMask, 3);
 }
 
@@ -161,7 +159,7 @@ const Mat& Background::getCurrentBackground() const
 	return currentBackground;
 }
 
-const Mat& Background::getCurrentTexture() const
+const Mat& Background::getCurrentStdDev() const
 {
-	return currentTexture;
+	return currentStdDev;
 }

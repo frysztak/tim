@@ -1,189 +1,335 @@
 #include "shadows.h"
 #include "background.h"
-#include "siltp.h"
-#include "GridCut/AlphaExpansion_2D_4C.h"
 
-Shadows::Shadows(const Size& size) : distanceThreshold(7), absoluteThreshold(8), stdDevCoeff(0.2), numLabels(3)
+Shadows::Shadows(ShadowsParameters& params) : params(params) 
 {
-	dataCosts = new int[size.area()*numLabels];
-
-	smoothnessCosts = new int*[size.area()*2];
-
-	for(int y = 0; y < size.height; y++)
-	for(int x = 0; x < size.width; x++)
-	{    
-		const int xy = x+y*size.width;
-		
-		smoothnessCosts[xy*2+0] = new int[numLabels*numLabels];
-		smoothnessCosts[xy*2+1] = new int[numLabels*numLabels];
-	}
 }
 
-Shadows::~Shadows()
+void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, OutputArray _dst)
 {
-	delete[] dataCosts;
-	delete[] smoothnessCosts;
-}
+	Mat frame = _src.getMat(), background = _bg.getMat(), backgroundStdDev = _bgStdDev.getMat(),
+		foregroundMask = _fgMask.getMat(), labelMask = _dst.getMat(), 
+		shadowMask = Mat::zeros(frame.size(), CV_8U);
 
-void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgTexture, InputArray _fgMask, OutputArray _dst)
-{
-	Mat frame = _src.getMat(), background = _bg.getMat(), backgroundTexture = _bgTexture.getMat(), 
-		foregroundMask = _fgMask.getMat(), labelMask = _dst.getMat(), frameTexture, 
-		shadowMaskHSV = Mat::zeros(frame.size(), CV_8U), 
-		shadowMask = Mat::zeros(Size(frame.cols-4,frame.rows-4), CV_8U);
-
-	SILTP_16x2(frame, frameTexture);
-
-	Mat hammDistance = Mat::zeros(frameTexture.size(), CV_8U);
-	Mat shadowMaskSILTP = Mat::zeros(frameTexture.size(), CV_8U);
-
-	// detect shadows in colour space
-	Mat bgHSV = Mat::zeros(frame.size(), CV_32F), fgHSV = Mat::zeros(frame.size(), CV_32F);
-	cvtColor(frame, fgHSV, COLOR_BGR2HSV);
-	cvtColor(background, bgHSV, COLOR_BGR2HSV);
-	
-	std::vector<Mat> fg_channels, bg_channels;
-	split(fgHSV, fg_channels);
-	split(bgHSV, bg_channels);
-
-	Mat R, D_H, D_S;
-	R = Mat::zeros(frame.size(), CV_32F);
-	D_H = Mat::zeros(frame.size(), CV_32F);
-	D_S = Mat::zeros(frame.size(), CV_32F);
-	subtract(fg_channels[0], bg_channels[0], D_H, noArray(), CV_32F); // H
-	subtract(fg_channels[1], bg_channels[1], D_S, noArray(), CV_32F); // S
-	divide(fg_channels[2], bg_channels[2], R, 1, CV_32F); // V
-
-	Scalar mean_H, stdDev_H;
-	Scalar mean_S, stdDev_S;
-	Scalar mean_V, stdDev_V;
-	meanStdDev(D_H, mean_H, stdDev_H, foregroundMask);
-	meanStdDev(D_S, mean_S, stdDev_S, foregroundMask);
-	meanStdDev(R, mean_V, stdDev_V, foregroundMask);
-
-	//float beta1 = mean_V[0] + a*stdDev_V[0];
-	float beta2 = mean_V[0] - stdDevCoeff*stdDev_V[0];
-	float alpha1_H = mean_H[0] + stdDevCoeff*stdDev_H[0];
-	float alpha2_H = mean_H[0] - stdDevCoeff*stdDev_H[0];
-	float alpha1_S = mean_S[0] + stdDevCoeff*stdDev_S[0];
-	float alpha2_S = mean_S[0] - stdDevCoeff*stdDev_S[0];
-
-	//std::cout << "beta1: " << beta1 << ", beta2: " << beta2 << std::endl;
-	//std::cout << "mean_H: " << mean_H[0] << ", alpha1_H: " << alpha1_H << ", alpha2_H: " << alpha2_H << std::endl;
-	//std::cout << "mean_S: " << mean_S[0] << ", alpha1_S: " << alpha1_S << ", alpha2_S: " << alpha2_S << std::endl;
-
-	for (int i = 0; i < frame.rows; i++)
+	// object masks: segment foreground mask into separate moving movingObjects
+	Mat objectLabels; 
+	int nLabels = connectedComponents(foregroundMask, objectLabels, 8, CV_16U);
+	std::vector<Object> movingObjects;
+	for (int label = 0; label < nLabels; label++)
 	{
-		for (int j = 0; j < frame.cols; j++)
+		auto obj = Object();
+		obj.mask = Mat::zeros(objectLabels.size(), CV_8U);
+		movingObjects.push_back(obj);
+	}
+
+	for (int idx = 0; idx < objectLabels.rows*objectLabels.cols; idx++)
+	{
+		uint16_t label = objectLabels.at<uint16_t>(idx);
+		if (label == 0) continue;
+
+		movingObjects[label].mask.at<uint8_t>(idx) = 1;
+	}
+
+	// remove tiniest movingObjects	
+	auto it = std::remove_if(movingObjects.begin(), movingObjects.end(), [](Object& object) { return countNonZero(object.mask) < 200; });
+	movingObjects.erase(it, movingObjects.end());
+
+	// calculate D (eq. 7) 
+	Mat D = Mat::zeros(frame.size(), CV_32FC3);
+	Mat tmp = Mat::zeros(frame.size(), CV_32FC3);
+	const double v = 1;
+	background.convertTo(D, CV_32F, 1, v);
+	frame.convertTo(tmp, CV_32F, 1, v);
+	divide(D, tmp, tmp, 1, CV_32FC3);
+	D *= 0;
+	tmp.copyTo(D, foregroundMask);
+	//D *= 0.25;
+#if DEBUG
+	double maxVal, minVal;
+	minMaxLoc(D, &minVal, &maxVal);
+	//std::cout << "D mean: " << cv::mean(D, foregroundMask) << std::endl;
+	//imshow("D", D/maxVal);
+#endif
+
+	// divide each moving objects into sub-segments
+	for (Object& object: movingObjects)
+	{
+		if (params.edgeCorrection)
+			erode(object.mask, object.mask, getStructuringElement(MORPH_RECT, Size(5,5)));
+
+		float grThr = params.gradientThreshold;
+		if (params.autoGradientThreshold)
 		{
-			if (foregroundMask.at<uint8_t>(i, j) == 0)
+			// calculate gradient threshold
+			float objSize = countNonZero(object.mask);
+			Mat objBg, objStdDev;
+			background.copyTo(objBg, object.mask);
+			backgroundStdDev.copyTo(objStdDev, object.mask);
+
+			Scalar meanSum = cv::sum(objBg);
+			Scalar stdDevSum = cv::sum(objStdDev);
+
+			grThr = params.alpha / objSize;
+			grThr *= meanSum[0] * stdDevSum[0] / objSize; 
+			grThr *= params.gradientThresholdMultiplier;
+#if DEBUG
+			std::cout << "threshold: " << grThr << ", obj size: " << objSize << std::endl;
+#endif
+		}
+
+		Mat segmentLabels = Mat::zeros(object.mask.size(), CV_16U);
+		int currentLabel = 0, area = 0;
+		
+		for (int r = 0; r < object.mask.rows; r++)
+		{
+			for (int c = 0; c < object.mask.cols; c++)
+			{
+				if (object.mask.at<uint8_t>(r, c) == 0 || segmentLabels.at<uint16_t>(r, c) != 0)
+					continue;
+				
+				Mat binaryMask = Mat::zeros(frame.size(), CV_8U);
+				area = findGSCN(Point(r, c), object.mask, D, segmentLabels, binaryMask, ++currentLabel, grThr);
+
+				Segment seg;
+				seg.mask = binaryMask;
+				seg.area = area;
+				object.segments.push_back(seg);
+			}
+		}
+
+		object.segmentLabels = segmentLabels;
+	}
+
+	// at this point, each moving object is divided into segments and labeled.
+
+	Mat globalSegmentMap = Mat::zeros(frame.size(), CV_16U);
+	uint32_t globalSegmentCounter = 0;
+
+	if (params.edgeCorrection)
+		erode(objectLabels, objectLabels, getStructuringElement(MORPH_RECT, Size(5,5)));
+
+#if DEBUG
+	Mat luminanceCritetion = Mat::zeros(frame.size(), CV_8U);
+	Mat sizeCriterion = Mat::zeros(frame.size(), CV_8U);
+	Mat externalPointsCriterion = Mat::zeros(frame.size(), CV_8U);
+#endif
+
+	for (Object& obj: movingObjects)
+	{
+		auto& segmentLabels = obj.segmentLabels;
+		globalSegmentMap += segmentLabels;
+
+		for (Segment& segment: obj.segments)
+		{
+			globalSegmentCounter++;
+			if(segment.area < params.minSegmentSize) continue;
+
+			// luminance criterion  (eq. 10)
+			Scalar mean = cv::mean(D, segment.mask);
+			bool luminance_ok = (mean[0] > params.luminanceThreshold) && (mean[1] > params.luminanceThreshold) && 
+				(mean[2] > params.luminanceThreshold);
+			if (!luminance_ok)
+			{
+				// it's surely foreground
+				shadowMask.setTo(2, segment.mask);
+				continue;
+			}
+#if DEBUG
+			else
+				luminanceCritetion.setTo(1, segment.mask);
+#endif
+
+			// size criterion (eq. 11)
+			bool size_ok = segment.area > params.lambda * countNonZero(obj.mask);
+#if DEBUG
+			if (size_ok)
+				sizeCriterion.setTo(1, segment.mask);
+#endif
+
+			// calculate number of internal and external terminal points
+			int nExternal = 0, nAll = 0;
+			for (int r = 0; r < segment.mask.rows; r++)
+			{
+				for (int c = 0; c < segment.mask.cols; c++)
+				{
+					if (segment.mask.at<uint8_t>(r, c) == 0) continue;
+					uint16_t segmentLabel = segmentLabels.at<uint16_t>(r,c);
+					uint16_t objLabel = objectLabels.at<uint16_t>(r,c);
+					
+					// first check if we're at the edge of label
+					if ((r < segmentLabels.rows - 1 && (segmentLabel != segmentLabels.at<uint16_t>(r+1,c))) ||
+						(c < segmentLabels.cols - 1 && (segmentLabel != segmentLabels.at<uint16_t>(r,c+1))) ||
+						(r > 0 && (segmentLabel != segmentLabels.at<uint16_t>(r-1,c))) ||
+						(c > 0 && (segmentLabel != segmentLabels.at<uint16_t>(r,c-1))))
+					{
+						// we are.
+						nAll++;
+
+						// check if we're at external point
+						if ((r < objectLabels.rows - 1 && (objLabel != objectLabels.at<uint16_t>(r+1,c))) ||
+							(c < objectLabels.cols - 1 && (objLabel != objectLabels.at<uint16_t>(r,c+1))) ||
+							(r > 0 && (objLabel != objectLabels.at<uint16_t>(r-1,c))) ||
+							(c > 0 && (objLabel != objectLabels.at<uint16_t>(r,c-1))))
+						//if ((r < objectLabels.rows - 1 && (0 == objectLabels.at<uint16_t>(r+1,c))) ||
+						//	(c < objectLabels.cols - 1 && (0 == objectLabels.at<uint16_t>(r,c+1))) ||
+						//	(r > 0 && (0 == objectLabels.at<uint16_t>(r-1,c))) ||
+						//	(c > 0 && (0 == objectLabels.at<uint16_t>(r,c-1))))
+
+						{
+							nExternal++;
+						}
+					}
+				}
+			}
+
+			// extrinsic terminal point criterion (eq. 12)
+			bool extrinsic_ok = (nExternal / float(nAll)) > params.tau;
+#if DEBUG
+			if (extrinsic_ok)
+				externalPointsCriterion.setTo(1, segment.mask);
+#endif
+
+			if (luminance_ok && size_ok && extrinsic_ok)
+				shadowMask.setTo(1, segment.mask);
+		}
+	}
+
+#if DEBUG
+	imshow("luminanceCritetion", 255*luminanceCritetion);
+	imshow("sizeCriterion", 255*sizeCriterion);
+	imshow("externalPointsCriterion", 255*externalPointsCriterion);
+	
+	if(globalSegmentCounter != 0)
+		showSegmentation(globalSegmentCounter, globalSegmentMap);
+
+	imshow("shadowMask w/ blanks", (255/2)*shadowMask);
+#endif
+
+	fillInBlanks(foregroundMask, shadowMask);
+	//showSegmentation(nLabels, objectLabels);
+	
+	shadowMask.copyTo(_dst);
+}
+
+int Shadows::findGSCN(Point startPoint, InputArray _objectMask, InputArray _D, InputOutputArray _labels, 
+		InputOutputArray _binaryMask, uint16_t label, float gradientThreshold)
+{
+	Mat labels = _labels.getMat(), objectMask = _objectMask.getMat(), 
+		D = _D.getMat(), visited = Mat::zeros(objectMask.size(), CV_8U), binaryMask = _binaryMask.getMat();
+
+	std::vector<Point> stack;
+	int area = 0;
+
+	// remember points in case GSCN turns out to be too small
+	std::vector<Point> visitedPoints; 
+
+	stack.push_back(startPoint);
+	while(!stack.empty())
+	{
+		auto checkPoint = [&](Point p2)
+		{
+			Vec3f ratio1 = D.at<Vec3f>(startPoint.x, startPoint.y);
+			Vec3f ratio2 = D.at<Vec3f>(p2.x, p2.y);
+
+			if (gradientThreshold > abs(ratio1[0] - ratio2[0]) &&
+				gradientThreshold > abs(ratio1[1] - ratio2[1]) &&
+				gradientThreshold > abs(ratio1[2] - ratio2[2]))
+			{
+				stack.push_back(p2);
+				visitedPoints.push_back(p2);
+				return true;
+			}
+			return false;
+		};
+		
+		Point p1 = stack[stack.size() - 1]; 
+
+		visited.at<uint8_t>(p1.x, p1.y) = 1;
+		labels.at<uint16_t>(p1.x, p1.y) = label;
+		binaryMask.at<uint8_t>(p1.x, p1.y) = 1;
+		area++;
+		
+		if (p1.x < labels.rows - 1 && !visited.at<uint8_t>(p1.x+1, p1.y) && objectMask.at<uint8_t>(p1.x+1,p1.y) != 0)
+			if(checkPoint(Point(p1.x+1, p1.y))) continue;
+		if (p1.y < labels.cols - 1 && !visited.at<uint8_t>(p1.x,p1.y+1) && objectMask.at<uint8_t>(p1.x,p1.y+1) != 0)
+			if(checkPoint(Point(p1.x, p1.y+1))) continue;
+		if (p1.x > 0 && !visited.at<uint8_t>(p1.x-1, p1.y) && objectMask.at<uint8_t>(p1.x-1,p1.y) != 0)
+			if(checkPoint(Point(p1.x-1, p1.y))) continue;
+		if (p1.y > 0 && !visited.at<uint8_t>(p1.x,p1.y-1) && objectMask.at<uint8_t>(p1.x,p1.y-1) != 0)
+			if(checkPoint(Point(p1.x, p1.y-1))) continue;
+
+		stack.pop_back();
+	}
+
+	if (area < params.minSegmentSize)
+	{
+		// area is too small, so revert labelling at every visited pixel
+		for (auto& p: visitedPoints)
+			labels.at<uint16_t>(p.x, p.y) = 0;
+	}
+
+	return area;
+}
+
+void Shadows::fillInBlanks(InputArray _fgMask, InputArray _mask)
+{
+	Mat fgMask = _fgMask.getMat(), mask = _mask.getMat();
+
+	auto findDistance = [&](int deltaR, int deltaC, int startR, int startC)
+	{
+		int r = startR, c = startC;
+		int distance = 0;
+		int value = 0;
+
+		while(r >= 0 && c >= 0 && r <= mask.rows && c <= mask.cols)
+		{
+			if (mask.at<uint8_t>(r,c) != 0)
+			{
+				value = mask.at<uint8_t>(r,c);
+				break;
+			}
+
+			r += deltaR;
+			c += deltaC;
+			distance++;
+		}
+
+		return std::make_tuple(distance, value);
+	};
+
+	for (int r = 0; r < fgMask.rows; r++)
+	{
+		for (int c = 0; c < fgMask.cols; c++)
+		{
+			if (fgMask.at<uint8_t>(r,c) == 0 || (fgMask.at<uint8_t>(r,c) != 0 && mask.at<uint8_t>(r,c) != 0))
 				continue;
 
-			float Rp = R.at<float>(i, j);
-			float Dp_H = D_H.at<float>(i, j);
-			float Dp_S = D_S.at<float>(i, j);
+			auto right = findDistance(1, 0, r, c);
+			auto left = findDistance(-1, 0, r, c);
+			auto up = findDistance(0, 1, r, c);
+			auto down = findDistance(0, -1, r, c);
 
-			if (Rp < beta2 && (Dp_H >= alpha1_H || Dp_H <= alpha2_H) && (Dp_S <= alpha2_S || Dp_S >= alpha1_S))
-				shadowMaskHSV.at<uint8_t>(i, j) = 1;
+			std::vector<decltype(right)> pairs = { right, left, up, down };
+			auto it = std::min_element(pairs.begin(), pairs.end(), [](decltype(right)& a, decltype(right)& b)
+					{ return std::get<0>(a) < std::get<0>(b); });
+
+			mask.at<uint8_t>(r,c) = std::get<1>(*it);
 		}
 	}
+}
 
-	imshow("shadowMaskHSV", 255*shadowMaskHSV);
-
-	// in texture space
-	for (int row = 2; row < frame.rows - 2; ++row)
+void Shadows::showSegmentation(int nSegments, InputArray _labels)
+{
+	Mat labels = _labels.getMat();
+	Mat segmentLabelsColour = Mat::zeros(labels.size(), CV_8UC3);
+	std::vector<Vec3b> colors(nSegments);
+	colors[0] = Vec3b(0, 0, 0);//background
+	for(int label = 1; label < nSegments; ++label)
+		colors[label] = Vec3b( (rand()&255), (rand()&255), (rand()&255) );
+	for (int idx = 0; idx < segmentLabelsColour.cols * segmentLabelsColour.rows; idx++)
 	{
-		uint16_t *bgTexturePtr = backgroundTexture.ptr<uint16_t>(row - 2);
-		uint16_t *fgTexturePtr = frameTexture.ptr<uint16_t>(row - 2);
-		uint8_t *shadowMaskSILTPPtr = shadowMaskSILTP.ptr<uint8_t>(row - 2);
-		uint8_t *hammDistancePtr = hammDistance.ptr<uint8_t>(row - 2);
-
-		for (int col = 2; col < frame.cols - 2; col++)
-		{
-			uint16_t bgTexture = *bgTexturePtr++;
-			uint16_t fgTexture = *fgTexturePtr++;
-
-			uint8_t distance = hamming_distance(bgTexture, fgTexture);
-
-			*hammDistancePtr++ = distance;
-			*shadowMaskSILTPPtr++ = 
-				((distance < distanceThreshold || fgTexture < absoluteThreshold));
-		}
+		int label = labels.at<uint16_t>(idx);
+		segmentLabelsColour.at<Vec3b>(idx) = colors[label];
 	}
-
-	imshow("shadowMaskSILTP", 255*shadowMaskSILTP);
-	//imshow("hamm distance", 15*hammDistance);
-	
-	// merge shadow masks
-	bitwise_and(shadowMaskSILTP, shadowMaskHSV(Rect(2,2,shadowMaskHSV.cols-4,shadowMaskHSV.rows-4)), shadowMask);
-	imshow("shadowMask", shadowMask * 255);
-
-	// MRF
-	const int width = frameTexture.cols;
-	const int height = frameTexture.rows;
-
-	//Set the pixel-label probability
-	for(int y = 0; y < height; y++)
-	for(int x = 0; x < width; x++)
-	{
-		if (foregroundMask.at<uint8_t>(y + 2, x + 2) == 0)
-		{
-			// pretty sure this pixel belongs to the background
-			dataCosts[(x+y*width)*numLabels+0] = -10*log(0.9);
-			dataCosts[(x+y*width)*numLabels+1] = -10*log(0.1);
-			dataCosts[(x+y*width)*numLabels+2] = -10*log(0.2);
-		}
-		else
-		{
-			if(shadowMask.at<uint8_t>(y, x) == 1)
-			{
-				// shadow
-				dataCosts[(x+y*width)*numLabels+0] = -10*log(0.1);
-				dataCosts[(x+y*width)*numLabels+1] = hammDistance.at<uint8_t>(y, x);  //-10*log(0.7);
-				dataCosts[(x+y*width)*numLabels+2] = -10*log(0.15);
-			}
-			else
-			{
-				// foreground
-				dataCosts[(x+y*width)*numLabels+0] = -10*log(0.1);	
-				dataCosts[(x+y*width)*numLabels+1] = -10*log(0.3);
-				dataCosts[(x+y*width)*numLabels+2] = -10*log(0.7);
-			}
-		}
-	}
-
-	for(int y = 0; y < height; y++)
-	for(int x = 0; x < width; x++)
-	{
-  		const int xy = x+y*width;
-		
-  		for(int label=0;label<numLabels;label++)
-	  	for(int otherLabel=0;otherLabel<numLabels;otherLabel++)
-	  	{
-			int cost = 0;
-			if (label != otherLabel && hammDistance.at<uint8_t>(y, x) > 50)
-				cost = hammDistance.at<uint8_t>(y,x);
-			smoothnessCosts[xy*2+0][label+otherLabel*numLabels] = cost; 
-			smoothnessCosts[xy*2+1][label+otherLabel*numLabels] = cost; 
-  		}
-	}
-
-	typedef AlphaExpansion_2D_4C<int,int,int> Expansion; 
-	Expansion* expansion = new Expansion(width,height,numLabels,dataCosts,smoothnessCosts);
-	expansion->perform();
-	
-	int* labeling = expansion->get_labeling();
-
-	for (int row = 0; row < shadowMask.rows; ++row)
-	{
-		uint8_t *labelMaskPtr = labelMask.ptr<uint8_t>(row);
-		int idx = labelMask.cols * row; 
-
-		for (int col = 0; col < labelMask.cols; col++, idx++)
-			*labelMaskPtr++ = labeling[idx] == 2 ? 255 : 0;
-	}
-
-	medianBlur(labelMask, labelMask, 3);
-
-	//delete expansion;
+	imshow("segments", segmentLabelsColour);
 }
