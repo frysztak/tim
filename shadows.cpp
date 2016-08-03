@@ -12,7 +12,6 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 		shadowMask = Mat::zeros(frame.size(), CV_8U);
 
 	// object masks: segment foreground mask into separate moving movingObjects
-	Mat objectLabels; 
 	int nLabels = connectedComponents(foregroundMask, objectLabels, 8, CV_16U);
 	std::vector<Object> movingObjects;
 	for (int label = 0; label < nLabels; label++)
@@ -38,7 +37,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 		minimizeObjectMask(obj);
 
 	// calculate D (eq. 7) 
-	Mat D = Mat::zeros(frame.size(), CV_32FC3);
+	D = Mat::zeros(frame.size(), CV_32FC3);
 	Mat tmp = Mat::zeros(frame.size(), CV_32FC3);
 	const double v = 1;
 	background.convertTo(D, CV_32F, 1, v);
@@ -81,7 +80,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 		}
 
 		Mat segmentLabels = Mat::zeros(object.mask.size(), CV_16U);
-		int currentLabel = 0, area = 0;
+		int currentLabel = 0;
 		
 		for (int r = 0; r < object.mask.rows; r++)
 		{
@@ -90,13 +89,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 				if (object.mask.at<uint8_t>(r, c) == 0 || segmentLabels.at<uint16_t>(r, c) != 0)
 					continue;
 				
-				Mat binaryMask = Mat::zeros(object.mask.size(), CV_8U);
-				area = findGSCN(Point(r, c), object.mask, D(object.selector), segmentLabels, binaryMask, ++currentLabel, grThr);
-
-				Segment seg;
-				seg.mask = binaryMask;
-				seg.area = area;
-				object.segments.push_back(seg);
+				findSegment(object, Point(r, c), segmentLabels, ++currentLabel, grThr);
 			}
 		}
 
@@ -216,32 +209,34 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	shadowMask.copyTo(_dst);
 }
 
-int Shadows::findGSCN(Point startPoint, InputArray _objectMask, InputArray _D, InputOutputArray _labels, 
-		InputOutputArray _binaryMask, uint16_t label, float gradientThreshold)
+void Shadows::findSegment(Object& object, Point startPoint, InputOutputArray _segmentLabels, 
+		 uint16_t label, float gradientThreshold)
 {
-	Mat labels = _labels.getMat(), objectMask = _objectMask.getMat(), 
-		D = _D.getMat(), visited = Mat::zeros(objectMask.size(), CV_8U), binaryMask = _binaryMask.getMat();
+	Mat labels = _segmentLabels.getMat(), objectMask = object.mask, 
+		segmentMask = Mat::zeros(objectMask.size(), CV_8U),
+		visited = Mat::zeros(objectMask.size(), CV_8U); 
 
 	std::vector<Point> stack;
 	int area = 0;
+	Mat D_roi = D(object.selector);
 
-	// remember points in case GSCN turns out to be too small
+	// remember points in case segment turns out to be too small
 	std::vector<Point> visitedPoints; 
 
 	stack.push_back(startPoint);
 	while(!stack.empty())
 	{
-		auto checkPoint = [&](Point p2)
+		auto checkPoint = [&](Point p)
 		{
-			Vec3f ratio1 = D.at<Vec3f>(startPoint.x, startPoint.y);
-			Vec3f ratio2 = D.at<Vec3f>(p2.x, p2.y);
+			Vec3f ratio1 = D_roi.at<Vec3f>(startPoint.x, startPoint.y);
+			Vec3f ratio2 = D_roi.at<Vec3f>(p.x, p.y);
 
 			if (gradientThreshold > abs(ratio1[0] - ratio2[0]) &&
 				gradientThreshold > abs(ratio1[1] - ratio2[1]) &&
 				gradientThreshold > abs(ratio1[2] - ratio2[2]))
 			{
-				stack.push_back(p2);
-				visitedPoints.push_back(p2);
+				stack.push_back(p);
+				visitedPoints.push_back(p);
 				return true;
 			}
 			return false;
@@ -251,7 +246,7 @@ int Shadows::findGSCN(Point startPoint, InputArray _objectMask, InputArray _D, I
 
 		visited.at<uint8_t>(p1.x, p1.y) = 1;
 		labels.at<uint16_t>(p1.x, p1.y) = label;
-		binaryMask.at<uint8_t>(p1.x, p1.y) = 1;
+		segmentMask.at<uint8_t>(p1.x, p1.y) = 1;
 		area++;
 		
 		if (p1.x < labels.rows - 1 && !visited.at<uint8_t>(p1.x+1, p1.y) && objectMask.at<uint8_t>(p1.x+1,p1.y) != 0)
@@ -270,10 +265,18 @@ int Shadows::findGSCN(Point startPoint, InputArray _objectMask, InputArray _D, I
 	{
 		// area is too small, so revert labelling at every visited pixel
 		for (auto& p: visitedPoints)
+		{
 			labels.at<uint16_t>(p.x, p.y) = 0;
+			segmentMask.at<uint8_t>(p.x, p.y) = 0;
+		}
 	}
-
-	return area;
+	else
+	{
+		Segment seg;
+		seg.mask = segmentMask;
+		seg.area = area;
+		object.segments.push_back(seg);
+	}
 }
 
 void Shadows::fillInBlanks(InputArray _fgMask, InputArray _mask)
@@ -343,7 +346,8 @@ void Shadows::minimizeObjectMask(Object& obj)
 {
 	Rect rect = boundingRect(obj.mask);
 	Size newSize = rect.size();
-	obj.offset = rect.tl();
-	obj.selector = Rect(obj.offset.x, obj.offset.y, newSize.width, newSize.height);
+	auto offset = rect.tl();
+
+	obj.selector = Rect(offset.x, offset.y, newSize.width, newSize.height);
 	obj.mask = obj.mask(obj.selector);
 }

@@ -23,7 +23,6 @@ struct Object
 	std::vector<Segment> segments;
 	Mat segmentLabels, mask;
 	Rect selector;
-	Point offset;
 };
 
 class Shadows
@@ -31,11 +30,13 @@ class Shadows
 	private:
 		ShadowsParameters params;
 				
-		int findGSCN(Point startPoint, InputArray _objectMask, InputArray _D, InputOutputArray _labels, 
-				InputOutputArray _binaryMask, uint16_t label, float gradientThreshold);
+		void findSegment(Object& object, Point startPoint, InputOutputArray _segmentLabels, 
+				uint16_t label, float gradientThreshold);
 		void fillInBlanks(InputArray _fgMask, InputArray _mask);
 		void showSegmentation(int nSegments, InputArray _labels);
 		void minimizeObjectMask(Object& obj);
+
+		Mat objectLabels, D;
 		
 	public:
 		Shadows(ShadowsParameters& params);
