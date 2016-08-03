@@ -116,7 +116,6 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 		for (Segment& segment: object.segments)
 		{
 			globalSegmentCounter++;
-			if(segment.area < params.minSegmentSize) continue;
 
 			// luminance criterion  (eq. 10)
 			Scalar mean = cv::mean(D(selector), segment.mask);
@@ -264,15 +263,10 @@ void Shadows::findSegment(MovingObject& object, Point startPoint, InputOutputArr
 	{
 		// area is too small, so revert labelling at every visited pixel
 		for (auto& p: visitedPoints)
-		{
 			labels.at<uint16_t>(p.x, p.y) = 0;
-			segmentMask.at<uint8_t>(p.x, p.y) = 0;
-		}
 	}
 	else
-	{
 		object.segments.emplace_back(segmentMask, area);
-	}
 }
 
 void Shadows::fillInBlanks(InputArray _fgMask, InputArray _mask)
@@ -329,7 +323,7 @@ void Shadows::showSegmentation(int nSegments, InputArray _labels)
 	std::vector<Vec3b> colors(nSegments);
 	colors[0] = Vec3b(0, 0, 0);//background
 	for(int label = 1; label < nSegments; ++label)
-		colors[label] = Vec3b( (rand()&255), (rand()&255), (rand()&255) );
+		colors[label] = Vec3b( (rand()&205) + 50, (rand()&205) + 50, (rand()&205) + 50);
 	for (int idx = 0; idx < segmentLabelsColour.cols * segmentLabelsColour.rows; idx++)
 	{
 		int label = labels.at<uint16_t>(idx);
