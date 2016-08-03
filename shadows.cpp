@@ -150,7 +150,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 					if (segment.mask.at<uint8_t>(r, c) == 0) continue;
 
 					uint16_t segmentLabel = segmentLabels.at<uint16_t>(r,c);
-					uint16_t objectLabel = objectLabels.at<uint16_t>(r,c);
+					uint16_t objectLabel = smallObjectLabels.at<uint16_t>(r,c);
 					
 					// first check if we're at the edge of label
 					if ((r < segmentLabels.rows - 1 && (segmentLabel != segmentLabels.at<uint16_t>(r+1,c))) ||
