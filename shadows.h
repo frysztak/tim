@@ -1,7 +1,7 @@
 #ifndef SHADOWS_H
 #define SHADOWS_H
 
-#include <opencv2/opencv.hpp>
+#include "movingobject.h"
 
 using namespace cv;
 
@@ -9,20 +9,7 @@ struct ShadowsParameters
 {
 	float gradientThreshold, gradientThresholdMultiplier, lambda, tau, alpha, luminanceThreshold;
 	bool edgeCorrection, autoGradientThreshold;
-	int minSegmentSize;
-};
-
-struct Segment
-{
-	Mat mask;
-	int area;
-};
-
-struct Object
-{
-	std::vector<Segment> segments;
-	Mat segmentLabels, mask;
-	Rect selector;
+	int minObjectSize, minSegmentSize;
 };
 
 class Shadows
@@ -30,11 +17,11 @@ class Shadows
 	private:
 		ShadowsParameters params;
 				
-		void findSegment(Object& object, Point startPoint, InputOutputArray _segmentLabels, 
+		void findSegment(MovingObject& object, Point startPoint, InputOutputArray _segmentLabels, 
 				uint16_t label, float gradientThreshold);
 		void fillInBlanks(InputArray _fgMask, InputArray _mask);
+		void minimizeObjectMask(MovingObject& obj);
 		void showSegmentation(int nSegments, InputArray _labels);
-		void minimizeObjectMask(Object& obj);
 
 		Mat objectLabels, D;
 		

@@ -28,6 +28,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	shadowParams.tau = json["tau"].number_value();
  	shadowParams.alpha = json["alpha"].number_value();
 	shadowParams.gradientThreshold = json["gradientThreshold"].number_value();
+	shadowParams.minObjectSize = json["minObjectSize"].int_value();
 	shadowParams.minSegmentSize = json["minSegmentSize"].int_value();
 
 	medianFilterSize = json["medianFilterSize"].int_value();

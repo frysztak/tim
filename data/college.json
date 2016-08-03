@@ -14,6 +14,7 @@
 	"gradientThreshold": 1.6,
 	"gradientThresholdMultiplier": 0.5,
 	"luminanceThreshold": 2.0,
+	"minObjectSize": 200,
 	"minSegmentSize": 60,
 
 	"medianFilterSize": 0,

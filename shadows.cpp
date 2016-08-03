@@ -13,14 +13,10 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 
 	// object masks: segment foreground mask into separate moving movingObjects
 	int nLabels = connectedComponents(foregroundMask, objectLabels, 8, CV_16U);
-	std::vector<Object> movingObjects;
+	std::vector<MovingObject> movingObjects;
 	for (int label = 0; label < nLabels; label++)
-	{
-		auto obj = Object();
-		obj.mask = Mat::zeros(objectLabels.size(), CV_8U);
-		movingObjects.push_back(obj);
-	}
-
+		movingObjects.emplace_back(objectLabels.size());
+	
 	for (int idx = 0; idx < objectLabels.rows*objectLabels.cols; idx++)
 	{
 		uint16_t label = objectLabels.at<uint16_t>(idx);
@@ -30,7 +26,8 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	}
 
 	// remove tiniest movingObjects	
-	auto it = std::remove_if(movingObjects.begin(), movingObjects.end(), [](Object& object) { return countNonZero(object.mask) < 200; });
+	auto it = std::remove_if(movingObjects.begin(), movingObjects.end(), 
+			[&](MovingObject& object) { return countNonZero(object.mask) < params.minObjectSize; });
 	movingObjects.erase(it, movingObjects.end());
 
 	for (auto& obj: movingObjects)
@@ -54,7 +51,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 #endif
 
 	// divide each moving objects into sub-segments
-	for (Object& object: movingObjects)
+	for (MovingObject& object: movingObjects)
 	{
 		if (params.edgeCorrection)
 			erode(object.mask, object.mask, getStructuringElement(MORPH_RECT, Size(5,5)));
@@ -110,36 +107,36 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	Mat externalPointsCriterion = Mat::zeros(frame.size(), CV_8U);
 #endif
 
-	for (Object& obj: movingObjects)
+	for (MovingObject& object: movingObjects)
 	{
-		auto& segmentLabels = obj.segmentLabels;
-		globalSegmentMap(obj.selector) += segmentLabels;
+		auto& segmentLabels = object.segmentLabels;
+		globalSegmentMap(object.selector) += segmentLabels;
 
-		for (Segment& segment: obj.segments)
+		for (Segment& segment: object.segments)
 		{
 			globalSegmentCounter++;
 			if(segment.area < params.minSegmentSize) continue;
 
 			// luminance criterion  (eq. 10)
-			Scalar mean = cv::mean(D(obj.selector), segment.mask);
+			Scalar mean = cv::mean(D(object.selector), segment.mask);
 			bool luminance_ok = (mean[0] > params.luminanceThreshold) && (mean[1] > params.luminanceThreshold) && 
 				(mean[2] > params.luminanceThreshold);
 			if (!luminance_ok)
 			{
 				// it's surely foreground
-				shadowMask(obj.selector).setTo(2, segment.mask);
+				shadowMask(object.selector).setTo(2, segment.mask);
 				continue;
 			}
 #if DEBUG
 			else
-				luminanceCritetion(obj.selector).setTo(1, segment.mask);
+				luminanceCritetion(object.selector).setTo(1, segment.mask);
 #endif
 
 			// size criterion (eq. 11)
-			bool size_ok = segment.area > params.lambda * countNonZero(obj.mask);
+			bool size_ok = segment.area > params.lambda * countNonZero(object.mask);
 #if DEBUG
 			if (size_ok)
-				sizeCriterion(obj.selector).setTo(1, segment.mask);
+				sizeCriterion(object.selector).setTo(1, segment.mask);
 #endif
 
 			// calculate number of internal and external terminal points
@@ -150,9 +147,9 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 				{
 					if (segment.mask.at<uint8_t>(r, c) == 0) continue;
 					uint16_t segmentLabel = segmentLabels.at<uint16_t>(r,c);
-					uint16_t objLabel = objectLabels.at<uint16_t>(r,c);
+					uint16_t objectLabel = objectLabels.at<uint16_t>(r,c);
 					auto smallSegmentLabels = segmentLabels;
-					auto smallObjectLabels = objectLabels(obj.selector);
+					auto smallObjectLabels = objectLabels(object.selector);
 					
 					// first check if we're at the edge of label
 					if ((r < smallSegmentLabels.rows - 1 && (segmentLabel != smallSegmentLabels.at<uint16_t>(r+1,c))) ||
@@ -164,10 +161,10 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 						nAll++;
 
 						// check if we're at external point
-						if ((r < smallObjectLabels.rows - 1 && (objLabel != smallObjectLabels.at<uint16_t>(r+1,c))) ||
-							(c < smallObjectLabels.cols - 1 && (objLabel != smallObjectLabels.at<uint16_t>(r,c+1))) ||
-							(r > 0 && (objLabel != smallObjectLabels.at<uint16_t>(r-1,c))) ||
-							(c > 0 && (objLabel != smallObjectLabels.at<uint16_t>(r,c-1))))
+						if ((r < smallObjectLabels.rows - 1 && (objectLabel != smallObjectLabels.at<uint16_t>(r+1,c))) ||
+							(c < smallObjectLabels.cols - 1 && (objectLabel != smallObjectLabels.at<uint16_t>(r,c+1))) ||
+							(r > 0 && (objectLabel != smallObjectLabels.at<uint16_t>(r-1,c))) ||
+							(c > 0 && (objectLabel != smallObjectLabels.at<uint16_t>(r,c-1))))
 						//if ((r < smallObjectLabels.rows - 1 && (0 == smallObjectLabels.at<uint16_t>(r+1,c))) ||
 						//	(c < smallObjectLabels.cols - 1 && (0 == smallObjectLabels.at<uint16_t>(r,c+1))) ||
 						//	(r > 0 && (0 == smallObjectLabels.at<uint16_t>(r-1,c))) ||
@@ -184,11 +181,11 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 			bool extrinsic_ok = (nExternal / float(nAll)) > params.tau;
 #if DEBUG
 			if (extrinsic_ok)
-				externalPointsCriterion(obj.selector).setTo(1, segment.mask);
+				externalPointsCriterion(object.selector).setTo(1, segment.mask);
 #endif
 
 			if (luminance_ok && size_ok && extrinsic_ok)
-				shadowMask(obj.selector).setTo(1, segment.mask);
+				shadowMask(object.selector).setTo(1, segment.mask);
 		}
 	}
 
@@ -209,7 +206,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	shadowMask.copyTo(_dst);
 }
 
-void Shadows::findSegment(Object& object, Point startPoint, InputOutputArray _segmentLabels, 
+void Shadows::findSegment(MovingObject& object, Point startPoint, InputOutputArray _segmentLabels, 
 		 uint16_t label, float gradientThreshold)
 {
 	Mat labels = _segmentLabels.getMat(), objectMask = object.mask, 
@@ -272,10 +269,7 @@ void Shadows::findSegment(Object& object, Point startPoint, InputOutputArray _se
 	}
 	else
 	{
-		Segment seg;
-		seg.mask = segmentMask;
-		seg.area = area;
-		object.segments.push_back(seg);
+		object.segments.emplace_back(segmentMask, area);
 	}
 }
 
@@ -342,7 +336,7 @@ void Shadows::showSegmentation(int nSegments, InputArray _labels)
 	imshow("segments", segmentLabelsColour);
 }
 
-void Shadows::minimizeObjectMask(Object& obj)
+void Shadows::minimizeObjectMask(MovingObject& obj)
 {
 	Rect rect = boundingRect(obj.mask);
 	Size newSize = rect.size();
