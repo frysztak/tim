@@ -34,6 +34,9 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	auto it = std::remove_if(movingObjects.begin(), movingObjects.end(), [](Object& object) { return countNonZero(object.mask) < 200; });
 	movingObjects.erase(it, movingObjects.end());
 
+	for (auto& obj: movingObjects)
+		minimizeObjectMask(obj);
+
 	// calculate D (eq. 7) 
 	Mat D = Mat::zeros(frame.size(), CV_32FC3);
 	Mat tmp = Mat::zeros(frame.size(), CV_32FC3);
@@ -63,8 +66,8 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 			// calculate gradient threshold
 			float objSize = countNonZero(object.mask);
 			Mat objBg, objStdDev;
-			background.copyTo(objBg, object.mask);
-			backgroundStdDev.copyTo(objStdDev, object.mask);
+			background(object.selector).copyTo(objBg, object.mask);
+			backgroundStdDev(object.selector).copyTo(objStdDev, object.mask);
 
 			Scalar meanSum = cv::sum(objBg);
 			Scalar stdDevSum = cv::sum(objStdDev);
@@ -87,8 +90,8 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 				if (object.mask.at<uint8_t>(r, c) == 0 || segmentLabels.at<uint16_t>(r, c) != 0)
 					continue;
 				
-				Mat binaryMask = Mat::zeros(frame.size(), CV_8U);
-				area = findGSCN(Point(r, c), object.mask, D, segmentLabels, binaryMask, ++currentLabel, grThr);
+				Mat binaryMask = Mat::zeros(object.mask.size(), CV_8U);
+				area = findGSCN(Point(r, c), object.mask, D(object.selector), segmentLabels, binaryMask, ++currentLabel, grThr);
 
 				Segment seg;
 				seg.mask = binaryMask;
@@ -117,7 +120,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	for (Object& obj: movingObjects)
 	{
 		auto& segmentLabels = obj.segmentLabels;
-		globalSegmentMap += segmentLabels;
+		globalSegmentMap(obj.selector) += segmentLabels;
 
 		for (Segment& segment: obj.segments)
 		{
@@ -125,25 +128,25 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 			if(segment.area < params.minSegmentSize) continue;
 
 			// luminance criterion  (eq. 10)
-			Scalar mean = cv::mean(D, segment.mask);
+			Scalar mean = cv::mean(D(obj.selector), segment.mask);
 			bool luminance_ok = (mean[0] > params.luminanceThreshold) && (mean[1] > params.luminanceThreshold) && 
 				(mean[2] > params.luminanceThreshold);
 			if (!luminance_ok)
 			{
 				// it's surely foreground
-				shadowMask.setTo(2, segment.mask);
+				shadowMask(obj.selector).setTo(2, segment.mask);
 				continue;
 			}
 #if DEBUG
 			else
-				luminanceCritetion.setTo(1, segment.mask);
+				luminanceCritetion(obj.selector).setTo(1, segment.mask);
 #endif
 
 			// size criterion (eq. 11)
 			bool size_ok = segment.area > params.lambda * countNonZero(obj.mask);
 #if DEBUG
 			if (size_ok)
-				sizeCriterion.setTo(1, segment.mask);
+				sizeCriterion(obj.selector).setTo(1, segment.mask);
 #endif
 
 			// calculate number of internal and external terminal points
@@ -155,25 +158,27 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 					if (segment.mask.at<uint8_t>(r, c) == 0) continue;
 					uint16_t segmentLabel = segmentLabels.at<uint16_t>(r,c);
 					uint16_t objLabel = objectLabels.at<uint16_t>(r,c);
+					auto smallSegmentLabels = segmentLabels;
+					auto smallObjectLabels = objectLabels(obj.selector);
 					
 					// first check if we're at the edge of label
-					if ((r < segmentLabels.rows - 1 && (segmentLabel != segmentLabels.at<uint16_t>(r+1,c))) ||
-						(c < segmentLabels.cols - 1 && (segmentLabel != segmentLabels.at<uint16_t>(r,c+1))) ||
-						(r > 0 && (segmentLabel != segmentLabels.at<uint16_t>(r-1,c))) ||
-						(c > 0 && (segmentLabel != segmentLabels.at<uint16_t>(r,c-1))))
+					if ((r < smallSegmentLabels.rows - 1 && (segmentLabel != smallSegmentLabels.at<uint16_t>(r+1,c))) ||
+						(c < smallSegmentLabels.cols - 1 && (segmentLabel != smallSegmentLabels.at<uint16_t>(r,c+1))) ||
+						(r > 0 && (segmentLabel != smallSegmentLabels.at<uint16_t>(r-1,c))) ||
+						(c > 0 && (segmentLabel != smallSegmentLabels.at<uint16_t>(r,c-1))))
 					{
 						// we are.
 						nAll++;
 
 						// check if we're at external point
-						if ((r < objectLabels.rows - 1 && (objLabel != objectLabels.at<uint16_t>(r+1,c))) ||
-							(c < objectLabels.cols - 1 && (objLabel != objectLabels.at<uint16_t>(r,c+1))) ||
-							(r > 0 && (objLabel != objectLabels.at<uint16_t>(r-1,c))) ||
-							(c > 0 && (objLabel != objectLabels.at<uint16_t>(r,c-1))))
-						//if ((r < objectLabels.rows - 1 && (0 == objectLabels.at<uint16_t>(r+1,c))) ||
-						//	(c < objectLabels.cols - 1 && (0 == objectLabels.at<uint16_t>(r,c+1))) ||
-						//	(r > 0 && (0 == objectLabels.at<uint16_t>(r-1,c))) ||
-						//	(c > 0 && (0 == objectLabels.at<uint16_t>(r,c-1))))
+						if ((r < smallObjectLabels.rows - 1 && (objLabel != smallObjectLabels.at<uint16_t>(r+1,c))) ||
+							(c < smallObjectLabels.cols - 1 && (objLabel != smallObjectLabels.at<uint16_t>(r,c+1))) ||
+							(r > 0 && (objLabel != smallObjectLabels.at<uint16_t>(r-1,c))) ||
+							(c > 0 && (objLabel != smallObjectLabels.at<uint16_t>(r,c-1))))
+						//if ((r < smallObjectLabels.rows - 1 && (0 == smallObjectLabels.at<uint16_t>(r+1,c))) ||
+						//	(c < smallObjectLabels.cols - 1 && (0 == smallObjectLabels.at<uint16_t>(r,c+1))) ||
+						//	(r > 0 && (0 == smallObjectLabels.at<uint16_t>(r-1,c))) ||
+						//	(c > 0 && (0 == smallObjectLabels.at<uint16_t>(r,c-1))))
 
 						{
 							nExternal++;
@@ -186,11 +191,11 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 			bool extrinsic_ok = (nExternal / float(nAll)) > params.tau;
 #if DEBUG
 			if (extrinsic_ok)
-				externalPointsCriterion.setTo(1, segment.mask);
+				externalPointsCriterion(obj.selector).setTo(1, segment.mask);
 #endif
 
 			if (luminance_ok && size_ok && extrinsic_ok)
-				shadowMask.setTo(1, segment.mask);
+				shadowMask(obj.selector).setTo(1, segment.mask);
 		}
 	}
 
@@ -332,4 +337,13 @@ void Shadows::showSegmentation(int nSegments, InputArray _labels)
 		segmentLabelsColour.at<Vec3b>(idx) = colors[label];
 	}
 	imshow("segments", segmentLabelsColour);
+}
+
+void Shadows::minimizeObjectMask(Object& obj)
+{
+	Rect rect = boundingRect(obj.mask);
+	Size newSize = rect.size();
+	obj.offset = rect.tl();
+	obj.selector = Rect(obj.offset.x, obj.offset.y, newSize.width, newSize.height);
+	obj.mask = obj.mask(obj.selector);
 }
