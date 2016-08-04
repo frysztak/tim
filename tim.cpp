@@ -22,8 +22,8 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	medianFilterSize = json["medianFilterSize"].int_value();
 	morphFilterSize = json["morphKernel"].int_value();
 	
-	auto videoFile = dataRootDir + "videos/" + json["video"].string_value();
-	videoCapture.open(videoFile);
+	auto videoFileName = dataRootDir + "videos/" + json["video"].string_value();
+	videoCapture.open(videoFileName);
 	if (!videoCapture.isOpened())
 	{
 		cout << "could not open video file" << endl;
