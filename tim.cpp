@@ -19,18 +19,6 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	string err, jsonString((std::istreambuf_iterator<char>(jsonFile)), std::istreambuf_iterator<char>());
 	auto json = Json::parse(jsonString, err);
 
-	ShadowsParameters shadowParams;
-	shadowParams.autoGradientThreshold = json["autoGradientThreshold"].bool_value();
-	shadowParams.gradientThresholdMultiplier = json["gradientThresholdMultiplier"].number_value();
-	shadowParams.luminanceThreshold = json["luminanceThreshold"].number_value();
-	shadowParams.edgeCorrection = json["edgeCorrection"].bool_value();
-	shadowParams.lambda = json["lambda"].number_value();
-	shadowParams.tau = json["tau"].number_value();
- 	shadowParams.alpha = json["alpha"].number_value();
-	shadowParams.gradientThreshold = json["gradientThreshold"].number_value();
-	shadowParams.minObjectSize = json["minObjectSize"].int_value();
-	shadowParams.minSegmentSize = json["minSegmentSize"].int_value();
-
 	medianFilterSize = json["medianFilterSize"].int_value();
 	morphFilterSize = json["morphKernel"].int_value();
 	
@@ -58,7 +46,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	this->frameSize = Size(width * scaleFactor, height * scaleFactor);
 	background.init(this->frameSize);
-	shadows = new Shadows(shadowParams);
+	shadows = new Shadows(jsonString);
 
 	if (morphFilterSize != 0)
 		morphKernel = getStructuringElement(MORPH_ELLIPSE, Size(morphFilterSize, morphFilterSize));

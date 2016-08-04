@@ -1,8 +1,32 @@
 #include "shadows.h"
 #include "background.h"
+#include "json11.hpp"
 
-Shadows::Shadows(ShadowsParameters& params) : params(params) 
+void ShadowsParameters::parse(const std::string& jsonString)
 {
+	std::string err;
+	auto json = json11::Json::parse(jsonString, err);
+
+	autoGradientThreshold = json["autoGradientThreshold"].bool_value();
+	gradientThresholdMultiplier = json["gradientThresholdMultiplier"].number_value();
+	luminanceThreshold = json["luminanceThreshold"].number_value();
+	edgeCorrection = json["edgeCorrection"].bool_value();
+	lambda = json["lambda"].number_value();
+	tau = json["tau"].number_value();
+ 	alpha = json["alpha"].number_value();
+	gradientThreshold = json["gradientThreshold"].number_value();
+	minObjectSize = json["minObjectSize"].int_value();
+	minSegmentSize = json["minSegmentSize"].int_value();
+}
+
+Shadows::Shadows(const std::string& jsonString)
+{
+	updateParameters(jsonString);
+}
+
+void Shadows::updateParameters(const std::string& jsonString)
+{
+	this->params.parse(jsonString);
 }
 
 void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, OutputArray _dst)

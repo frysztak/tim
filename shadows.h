@@ -10,6 +10,8 @@ struct ShadowsParameters
 	float gradientThreshold, gradientThresholdMultiplier, lambda, tau, alpha, luminanceThreshold;
 	bool edgeCorrection, autoGradientThreshold;
 	int minObjectSize, minSegmentSize;
+
+	void parse(const std::string& json);
 };
 
 class Shadows
@@ -26,7 +28,8 @@ class Shadows
 		Mat objectLabels, D;
 		
 	public:
-		Shadows(ShadowsParameters& params);
+		Shadows(const std::string& jsonString);
+		void updateParameters(const std::string& jsonString);
 		void removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, OutputArray _dst);
 };
 
