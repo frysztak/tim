@@ -3,12 +3,14 @@
 #include <fstream>
 #include <iostream>
 #include <chrono>
+#include <thread>
+#include <nanomsg/pair.h>
 
 using namespace json11;
 
 bool Tim::open(const string& name, bool benchmark, bool record)
 {
-	string fileName = "data/" + name + ".json";
+	string fileName = dataRootDir + "json/" + name + ".json";
 	ifstream jsonFile(fileName, ifstream::in);
 	if (!jsonFile.is_open()) 
 	{
@@ -30,6 +32,22 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 		return false;
 	}
 
+	// nn_send blocks the thread, so start a separate one just for a while
+	// nanomsg sockets are thread-safe, thank god
+	std::thread sendJsonFilename_thread([&]()
+	{
+		socket = nn_socket(AF_SP, NN_PAIR);
+		if (socket >= 0)
+		{
+			if (nn_bind(socket, "ipc:///tmp/tim.ipc") >= 0)
+			{
+				const char* msg = fileName.c_str();
+				nn_send(socket, msg, strlen(msg), 0);
+			}
+		}
+	});
+	sendJsonFilename_thread.detach();
+	
 	auto width = videoCapture.get(CV_CAP_PROP_FRAME_WIDTH);
 	auto height = videoCapture.get(CV_CAP_PROP_FRAME_HEIGHT);
 	auto fps = videoCapture.get(CV_CAP_PROP_FPS);
@@ -72,41 +90,40 @@ void Tim::processFrames()
 	{
 		if(!paused)
 		{
+			frameCount++;
 			videoCapture >> inputFrame;
 			resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
 			
 			background.processFrame(inputFrame, foregroundMask);
+		}
 
-			shadowMask = Mat::zeros(frameSize, CV_8U);
-			if (removeShadows)
-				shadows->removeShadows(inputFrame, background.getCurrentBackground(), background.getCurrentStdDev(), 
-						foregroundMask, shadowMask);
+		shadowMask = Mat::zeros(frameSize, CV_8U);
+		if (removeShadows)
+			shadows->removeShadows(inputFrame, background.getCurrentBackground(), background.getCurrentStdDev(), 
+					foregroundMask, shadowMask);
 
-			if (medianFilterSize != 0)
-				medianBlur(foregroundMask, foregroundMask, medianFilterSize);
-			//if (morphFilterSize != 0)
-			//	morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, morphKernel);
+		if (medianFilterSize != 0)
+			medianBlur(foregroundMask, foregroundMask, medianFilterSize);
+		//if (morphFilterSize != 0)
+		//	morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, morphKernel);
 
-			frameCount++;
+		if (!benchmarkMode)
+		{
+			Mat foregroundMaskBGR, row1, row2;
 
-			if (!benchmarkMode)
-			{
-				Mat foregroundMaskBGR, row1, row2;
+			//classifier.DrawBoundingBoxes(inputFrame, foregroundMask);
+			displayFrame = inputFrame;
+			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
+			hconcat(inputFrame, foregroundMaskBGR, row1);
 
-				//classifier.DrawBoundingBoxes(inputFrame, foregroundMask);
-				displayFrame = inputFrame;
-				cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
-				hconcat(inputFrame, foregroundMaskBGR, row1);
+			cvtColor(shadowMask * (255/2), shadowMask, COLOR_GRAY2BGR);
 
-				cvtColor(shadowMask * (255/2), shadowMask, COLOR_GRAY2BGR);
-
-				hconcat(background.getCurrentBackground(), shadowMask, row2);
-				vconcat(row1, row2, displayFrame);
-				imshow("OpenCV", displayFrame);
-				
-				if(record)
-					videoWriter << displayFrame;
-			}
+			hconcat(background.getCurrentBackground(), shadowMask, row2);
+			vconcat(row1, row2, displayFrame);
+			imshow("OpenCV", displayFrame);
+			
+			if(record)
+				videoWriter << displayFrame;
 		}
 		
 		if (benchmarkMode && frameCount == BENCHMARK_FRAMES_NUM)
@@ -119,6 +136,16 @@ void Tim::processFrames()
 			paused = !paused;
 		else if (key == 's')
 			removeShadows = !removeShadows;
+
+		// check if parameters got updated
+		void *buf = NULL;
+		int nbytes = nn_recv(socket, &buf, NN_MSG, NN_DONTWAIT);
+		if (nbytes > 0)
+		{
+			std::string jsonString((const char*)buf, nbytes);
+			shadows->updateParameters(jsonString);
+			nn_freemsg(buf);
+		}
 	}
 
 	auto t2 = std::chrono::steady_clock::now();

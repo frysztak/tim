@@ -4,6 +4,7 @@
 #include "background.h"
 #include "classifier.h"
 #include "shadows.h"
+#include <nanomsg/nn.h>
 #include <string>
 
 #define BENCHMARK_FRAMES_NUM 400
@@ -34,6 +35,8 @@ class Tim
 		VideoCapture videoCapture;
 		VideoWriter videoWriter;
 		Size frameSize;
+
+		int socket;
 };
 
 #endif

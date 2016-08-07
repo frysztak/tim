@@ -96,7 +96,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 			grThr *= meanSum[0] * stdDevSum[0] / objSize; 
 			grThr *= params.gradientThresholdMultiplier;
 #if DEBUG
-			std::cout << "threshold: " << grThr << ", obj size: " << objSize << std::endl;
+			//std::cout << "threshold: " << grThr << ", obj size: " << objSize << std::endl;
 #endif
 		}
 
