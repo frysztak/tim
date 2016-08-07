@@ -219,8 +219,8 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	imshow("sizeCriterion", 255*sizeCriterion);
 	imshow("externalPointsCriterion", 255*externalPointsCriterion);
 	
-	if(globalSegmentCounter != 0)
-		showSegmentation(globalSegmentCounter, globalSegmentMap);
+	//if(globalSegmentCounter != 0)
+	//	showSegmentation(globalSegmentCounter, globalSegmentMap);
 
 	imshow("shadowMask w/ blanks", (255/2)*shadowMask);
 #endif
@@ -346,8 +346,16 @@ void Shadows::showSegmentation(int nSegments, InputArray _labels)
 	Mat segmentLabelsColour = Mat::zeros(labels.size(), CV_8UC3);
 	std::vector<Vec3b> colors(nSegments);
 	colors[0] = Vec3b(0, 0, 0);//background
+
+	uint32_t maxValue = 255*255*255;
+	int interval = maxValue / nSegments;
+
 	for(int label = 1; label < nSegments; ++label)
-		colors[label] = Vec3b( (rand()&205) + 50, (rand()&205) + 50, (rand()&205) + 50);
+	{
+		uint32_t colour = label * interval;
+		colors[label] = Vec3b(colour & 0x000000FF, (colour & 0x0000FF00) >> 8, (colour & 0x00FF0000) >> 16);
+	}
+
 	for (int idx = 0; idx < segmentLabelsColour.cols * segmentLabelsColour.rows; idx++)
 	{
 		int label = labels.at<uint16_t>(idx);
