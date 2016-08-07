@@ -7,8 +7,9 @@ from nanomsg import Socket, PAIR
 socket = Socket(PAIR)
 
 class Dialog(QDialog):
-    def __init__(self, jsonData):
+    def __init__(self, jsonPath, jsonData):
         super(Dialog, self).__init__()
+        self.jsonPath = jsonPath
         self.jsonData = jsonData
         
         mainLayout = QVBoxLayout()
@@ -43,6 +44,9 @@ class Dialog(QDialog):
         self.jsonData[key] = sender.isChecked() if isinstance(sender, QCheckBox) else sender.value()
         socket.send(json.dumps(jsonData))
 
+        with open(self.jsonPath, 'w') as f:
+            json.dump(jsonData, f, indent=4)
+
 if __name__ == '__main__':
     socket.connect('ipc:///tmp/tim.ipc')
     filePath = socket.recv()
@@ -53,7 +57,7 @@ if __name__ == '__main__':
     # Create main app
     myApp = QApplication(sys.argv)
     myApp.aboutToQuit.connect(lambda: socket.close())
-    dialog = Dialog(jsonData)
+    dialog = Dialog(filePath, jsonData)
     dialog.show()
     sys.exit(myApp.exec_())
 
