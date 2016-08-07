@@ -17,6 +17,7 @@ void ShadowsParameters::parse(const std::string& jsonString)
 	gradientThreshold = json["gradientThreshold"].number_value();
 	minObjectSize = json["minObjectSize"].int_value();
 	minSegmentSize = json["minSegmentSize"].int_value();
+	randomReconstruction = json["randomReconstruction"].bool_value();
 }
 
 Shadows::Shadows(const std::string& jsonString)
@@ -319,6 +320,8 @@ void Shadows::fillInBlanks(InputArray _fgMask, InputArray _mask)
 		return std::make_tuple(distance, value);
 	};
 
+	// first of all, make a list of all unlabeled pixels
+	std::vector<Point> unlabeled;
 	for (int r = 0; r < fgMask.rows; r++)
 	{
 		for (int c = 0; c < fgMask.cols; c++)
@@ -326,18 +329,29 @@ void Shadows::fillInBlanks(InputArray _fgMask, InputArray _mask)
 			if (fgMask.at<uint8_t>(r,c) == 0 || (fgMask.at<uint8_t>(r,c) != 0 && mask.at<uint8_t>(r,c) != 0))
 				continue;
 
-			auto right = findDistance(1, 0, r, c);
-			auto left = findDistance(-1, 0, r, c);
-			auto up = findDistance(0, 1, r, c);
-			auto down = findDistance(0, -1, r, c);
-
-			std::vector<decltype(right)> pairs = { right, left, up, down };
-			auto it = std::min_element(pairs.begin(), pairs.end(), [](decltype(right)& a, decltype(right)& b)
-					{ return std::get<0>(a) < std::get<0>(b); });
-
-			mask.at<uint8_t>(r,c) = std::get<1>(*it);
+			unlabeled.emplace_back(r,c);
 		}
 	}
+
+	if (params.randomReconstruction)
+		std::random_shuffle(unlabeled.begin(), unlabeled.end());
+
+	// now iterate over prepared list
+	for (Point& p: unlabeled)
+	{
+		int r = p.x; int c = p.y;
+
+		auto right = findDistance(1, 0, r, c);
+		auto left = findDistance(-1, 0, r, c);
+		auto up = findDistance(0, 1, r, c);
+		auto down = findDistance(0, -1, r, c);
+
+		std::vector<decltype(right)> pairs = { right, left, up, down };
+		auto it = std::min_element(pairs.begin(), pairs.end(), [](decltype(right)& a, decltype(right)& b)
+				{ return std::get<0>(a) < std::get<0>(b); });
+
+		mask.at<uint8_t>(r,c) = std::get<1>(*it);
+	}	
 }
 
 void Shadows::showSegmentation(int nSegments, InputArray _labels)

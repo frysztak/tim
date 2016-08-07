@@ -8,7 +8,7 @@ using namespace cv;
 struct ShadowsParameters
 {
 	float gradientThreshold, gradientThresholdMultiplier, lambda, tau, alpha, luminanceThreshold;
-	bool edgeCorrection, autoGradientThreshold;
+	bool edgeCorrection, autoGradientThreshold, randomReconstruction;
 	int minObjectSize, minSegmentSize;
 
 	void parse(const std::string& json);
