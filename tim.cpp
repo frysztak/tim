@@ -111,10 +111,10 @@ void Tim::processFrames()
 		{
 			Mat foregroundMaskBGR, row1, row2;
 
-			//classifier.DrawBoundingBoxes(inputFrame, foregroundMask);
-			displayFrame = inputFrame;
+			inputFrame.copyTo(displayFrame);
+			classifier.DrawBoundingBoxes(displayFrame, shadowMask == 2);
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
-			hconcat(inputFrame, foregroundMaskBGR, row1);
+			hconcat(displayFrame, foregroundMaskBGR, row1);
 
 			cvtColor(shadowMask * (255/2), shadowMask, COLOR_GRAY2BGR);
 

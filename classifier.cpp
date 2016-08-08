@@ -19,6 +19,6 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask)
 		Point2f vtx[4];
 		rect.points(vtx);
 		for(int i = 0; i < 4; i++)
-			line(frame, vtx[i], vtx[(i+1)%4], Scalar(100, 0, 0), 2, LINE_AA);
+			line(frame, vtx[i], vtx[(i+1)%4], Scalar(255, 0, 255), 2, LINE_AA);
 	}
 }
