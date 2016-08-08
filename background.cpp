@@ -38,19 +38,20 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 
 		for (int col = 0; col < src.cols; col++, idx++)
 		{
-			uint8_t x = *srcPtr++;
-			uint8_t y = *srcPtr++;
-			uint8_t z = *srcPtr++;
+			Vec3b bgr;
+			bgr[0] = *srcPtr++; 
+			bgr[1] = *srcPtr++; 
+			bgr[2] = *srcPtr++; 
 				
 			GaussianMixture& mog = gaussians[idx];
-			bool foreground = processPixel(Colour(x,y,z), mog);
+			bool foreground = processPixel(bgr, mog);
 			*foregroundMaskPtr++ = foreground ? 1 : 0;
 
 			// update current background model (or rather, background image)
 			auto& gauss = mog[0];
-			*currentBackgroundPtr++ = gauss.miR;
-			*currentBackgroundPtr++ = gauss.miG;
 			*currentBackgroundPtr++ = gauss.miB;
+			*currentBackgroundPtr++ = gauss.miG;
+			*currentBackgroundPtr++ = gauss.miR;
 			*currentStdDevPtr++ = sqrt(gauss.variance);
 		}
 	}
@@ -58,7 +59,7 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 	medianBlur(foregroundMask, foregroundMask, 3);
 }
 
-bool Background::processPixel(const Colour& rgb, GaussianMixture& mixture)
+bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 {
 	double weightSum = 0.0;
 	bool matchFound = false;
@@ -66,9 +67,9 @@ bool Background::processPixel(const Colour& rgb, GaussianMixture& mixture)
 
 	for (Gaussian& gauss : mixture)
 	{
-		float dR = gauss.miR - rgb.x;
-		float dG = gauss.miG - rgb.y;
-		float dB = gauss.miB - rgb.z;
+		float dB = gauss.miB - bgr[0];
+		float dG = gauss.miG - bgr[1];
+		float dR = gauss.miR - bgr[2];
 		float distance = dR*dR + dG*dG + dB*dB;
 
 		if (sqrt(distance) < 2.5*sqrt(gauss.variance) && !matchFound)
@@ -85,9 +86,9 @@ bool Background::processPixel(const Colour& rgb, GaussianMixture& mixture)
 			float rho = learningRate * eta;
 			float oneMinusRho = 1.0 - rho;
 
-			gauss.miR = oneMinusRho*gauss.miR + rho*rgb.x;
-			gauss.miG = oneMinusRho*gauss.miG + rho*rgb.y;
-			gauss.miB = oneMinusRho*gauss.miB + rho*rgb.z;
+			gauss.miB = oneMinusRho*gauss.miB + rho*bgr[0];
+			gauss.miG = oneMinusRho*gauss.miG + rho*bgr[1];
+			gauss.miR = oneMinusRho*gauss.miR + rho*bgr[2];
 			gauss.variance = oneMinusRho*gauss.variance + rho*distance;
 		}
 		else
@@ -116,9 +117,9 @@ bool Background::processPixel(const Colour& rgb, GaussianMixture& mixture)
 
 		Gaussian& gauss = mixture.back();
 
-		gauss.miR = rgb.x;	
-		gauss.miG = rgb.y;
-		gauss.miB = rgb.z;
+		gauss.miB = bgr[0];
+		gauss.miG = bgr[1];
+		gauss.miR = bgr[2];	
 		gauss.weight = initialWeight;
 		gauss.variance = initialVariance;
 
@@ -138,18 +139,14 @@ bool Background::processPixel(const Colour& rgb, GaussianMixture& mixture)
 	std::sort(mixture.begin(), mixture.end(), std::greater<Gaussian>());
 
 	// estimate whether pixel belongs to foreground using probability equation given by Benedek & Sziranyi
-	float L = (float)rgb.x;
-	float u = (float)rgb.y;
-	float v = (float)rgb.z;
-
 	// calculate eplison for background
 	const Gaussian& gauss = mixture[0];
 
 	float epsilon_bg = 2 * log10(2 * M_PI);
 	epsilon_bg += 3 * log10(sqrt(gauss.variance));
-	epsilon_bg += 0.5 * (L - gauss.miR)*(L - gauss.miR) / gauss.variance;
-	epsilon_bg += 0.5 * (u - gauss.miG)*(u - gauss.miG) / gauss.variance;
-	epsilon_bg += 0.5 * (v - gauss.miB)*(v - gauss.miB) / gauss.variance;
+	epsilon_bg += 0.5 * (bgr[0] - gauss.miB) * (bgr[0] - gauss.miB) / gauss.variance;
+	epsilon_bg += 0.5 * (bgr[1] - gauss.miG) * (bgr[1] - gauss.miG) / gauss.variance;
+	epsilon_bg += 0.5 * (bgr[2] - gauss.miR) * (bgr[2] - gauss.miR) / gauss.variance;
 
 	return epsilon_bg > foregroundThreshold;
 }

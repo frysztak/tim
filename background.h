@@ -10,10 +10,10 @@ class Background
 {
 	struct Gaussian 
 	{
-		float variance;
-		float miR;
-		float miG;
 		float miB;
+		float miG;
+		float miR;
+		float variance;
 		float weight;
 
 		bool operator>(const Gaussian& other) const
@@ -25,8 +25,6 @@ class Background
 	typedef std::vector<Gaussian> GaussianMixture;
 	
 	public:
-		typedef Point3_<uint8_t> Colour;
-
 		Background();
 		void init(const Size& size);
 		void processFrame(InputArray _src, OutputArray _foregroundMask);
@@ -45,7 +43,7 @@ class Background
 		Mat currentBackground, currentStdDev;
 		std::vector<GaussianMixture> gaussians;
 
-		bool processPixel(const Colour& rgb, GaussianMixture& mixture);
+		bool processPixel(const Vec3b& rgb, GaussianMixture& mixture);
 };
 
 #endif
