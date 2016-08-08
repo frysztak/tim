@@ -64,7 +64,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	this->frameSize = Size(width * scaleFactor, height * scaleFactor);
 	background.init(this->frameSize);
-	shadows = new Shadows(jsonString);
+	shadows = new Shadows(json);
 
 	if (morphFilterSize != 0)
 		morphKernel = getStructuringElement(MORPH_ELLIPSE, Size(morphFilterSize, morphFilterSize));
@@ -142,8 +142,9 @@ void Tim::processFrames()
 		int nbytes = nn_recv(socket, &buf, NN_MSG, NN_DONTWAIT);
 		if (nbytes > 0)
 		{
-			std::string jsonString((const char*)buf, nbytes);
-			shadows->updateParameters(jsonString);
+			std::string jsonString((const char*)buf, nbytes), err;
+			auto json = Json::parse(jsonString, err);
+			shadows->updateParameters(json);
 			nn_freemsg(buf);
 		}
 	}

@@ -1,12 +1,8 @@
 #include "shadows.h"
 #include "background.h"
-#include "json11.hpp"
 
-void ShadowsParameters::parse(const std::string& jsonString)
+void ShadowsParameters::parse(const json11::Json& json)
 {
-	std::string err;
-	auto json = json11::Json::parse(jsonString, err);
-
 	autoGradientThreshold = json["autoGradientThreshold"].bool_value();
 	gradientThresholdMultiplier = json["gradientThresholdMultiplier"].number_value();
 	luminanceThreshold = json["luminanceThreshold"].number_value();
@@ -20,14 +16,14 @@ void ShadowsParameters::parse(const std::string& jsonString)
 	randomReconstruction = json["randomReconstruction"].bool_value();
 }
 
-Shadows::Shadows(const std::string& jsonString)
+Shadows::Shadows(const json11::Json& json)
 {
-	updateParameters(jsonString);
+	updateParameters(json);
 }
 
-void Shadows::updateParameters(const std::string& jsonString)
+void Shadows::updateParameters(const json11::Json& json)
 {
-	this->params.parse(jsonString);
+	this->params.parse(json);
 }
 
 void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, OutputArray _dst)

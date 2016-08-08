@@ -2,6 +2,7 @@
 #define SHADOWS_H
 
 #include "movingobject.h"
+#include "json11.hpp"
 
 using namespace cv;
 
@@ -11,7 +12,7 @@ struct ShadowsParameters
 	bool edgeCorrection, autoGradientThreshold, randomReconstruction;
 	int minObjectSize, minSegmentSize;
 
-	void parse(const std::string& json);
+	void parse(const json11::Json& json);
 };
 
 class Shadows
@@ -28,8 +29,8 @@ class Shadows
 		Mat objectLabels, D;
 		
 	public:
-		Shadows(const std::string& jsonString);
-		void updateParameters(const std::string& jsonString);
+		Shadows(const json11::Json& jsonString);
+		void updateParameters(const json11::Json& jsonString);
 		void removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, OutputArray _dst);
 };
 
