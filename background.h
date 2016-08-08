@@ -39,6 +39,8 @@ class Background
 		const int gaussiansPerPixel;
 		const float learningRate;
 		const float foregroundThreshold;
+		
+		const float etaConst;
 
 		Mat currentBackground, currentStdDev;
 		std::vector<GaussianMixture> gaussians;

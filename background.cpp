@@ -5,7 +5,8 @@ Background::Background() :
 	initialWeight(0.05),
 	gaussiansPerPixel(3),
 	learningRate(0.05),
-	foregroundThreshold(8.5)
+	foregroundThreshold(8.5),
+	etaConst(pow(2 * M_PI, 3.0 / 2.0))
 {
 }
 
@@ -73,14 +74,13 @@ bool Background::processPixel(const Colour& rgb, GaussianMixture& mixture)
 		if (sqrt(distance) < 2.5*sqrt(gauss.variance) && !matchFound)
 		{
 			matchFound = true;
-
-			float exponent = -0.5 / gauss.variance;
-			exponent *= distance;
 			
-			float eta = pow(2 * M_PI, 3.0 / 2.0);
-			eta *= pow(sqrt(gauss.variance), 3.0);
-			eta = 1.0 / eta;
-			eta *= exp(exponent);
+			// determinant of covariance matrix (eq. 4 in Stauffer&Grimson's paper) equals to sigma^6. 
+			// we need sigma^3, let's so calculate square root of variance (stdDev) and multiply it 3 times.
+			float stdDev = sqrt(gauss.variance);
+
+			float exponent = (-0.5 * distance) / gauss.variance;
+			float eta = exp(exponent) / (etaConst * stdDev * stdDev * stdDev);
 
 			float rho = learningRate * eta;
 			float oneMinusRho = 1.0 - rho;
