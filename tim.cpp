@@ -84,7 +84,7 @@ void Tim::processFrames()
 {
 	Mat inputFrame, foregroundMask = Mat::zeros(frameSize, CV_8U), shadowMask, displayFrame, bgModel;
 
-	auto t1 = std::chrono::steady_clock::now();
+	auto t1 = std::chrono::high_resolution_clock::now();
 
 	while (true)
 	{
@@ -129,27 +129,30 @@ void Tim::processFrames()
 		if (benchmarkMode && frameCount == BENCHMARK_FRAMES_NUM)
 			break;
 
-		char key = waitKey(30);
-		if(key == 'q')
-			break;
-		else if (key == ' ')
-			paused = !paused;
-		else if (key == 's')
-			removeShadows = !removeShadows;
-
-		// check if parameters got updated
-		void *buf = NULL;
-		int nbytes = nn_recv(socket, &buf, NN_MSG, NN_DONTWAIT);
-		if (nbytes > 0)
+		if (!benchmarkMode)
 		{
-			std::string jsonString((const char*)buf, nbytes), err;
-			auto json = Json::parse(jsonString, err);
-			shadows->updateParameters(json);
-			nn_freemsg(buf);
+			char key = waitKey(30);
+			if(key == 'q')
+				break;
+			else if (key == ' ')
+				paused = !paused;
+			else if (key == 's')
+				removeShadows = !removeShadows;
+
+			// check if parameters got updated
+			void *buf = NULL;
+			int nbytes = nn_recv(socket, &buf, NN_MSG, NN_DONTWAIT);
+			if (nbytes > 0)
+			{
+				std::string jsonString((const char*)buf, nbytes), err;
+				auto json = Json::parse(jsonString, err);
+				shadows->updateParameters(json);
+				nn_freemsg(buf);
+			}
 		}
 	}
 
-	auto t2 = std::chrono::steady_clock::now();
+	auto t2 = std::chrono::high_resolution_clock::now();
 	if (benchmarkMode)
 	{
 		auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);

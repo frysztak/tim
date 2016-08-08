@@ -18,7 +18,7 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -Wa,--gstabs -save-temps")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
 
-add_definitions(-DDEBUG)
+#add_definitions(-DDEBUG)
 ## 1. Compile...
 add_executable(tim ${SOURCES})
 
