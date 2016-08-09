@@ -49,9 +49,9 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 
 			// update current background model (or rather, background image)
 			auto& gauss = mog[0];
-			*currentBackgroundPtr++ = gauss.miB;
-			*currentBackgroundPtr++ = gauss.miG;
-			*currentBackgroundPtr++ = gauss.miR;
+			*currentBackgroundPtr++ = gauss.meanB;
+			*currentBackgroundPtr++ = gauss.meanG;
+			*currentBackgroundPtr++ = gauss.meanR;
 			*currentStdDevPtr++ = sqrt(gauss.variance);
 		}
 	}
@@ -67,9 +67,9 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 
 	for (Gaussian& gauss : mixture)
 	{
-		float dB = gauss.miB - bgr[0];
-		float dG = gauss.miG - bgr[1];
-		float dR = gauss.miR - bgr[2];
+		float dB = gauss.meanB - bgr[0];
+		float dG = gauss.meanG - bgr[1];
+		float dR = gauss.meanR - bgr[2];
 		float distance = dR*dR + dG*dG + dB*dB;
 
 		if (sqrt(distance) < 2.5*sqrt(gauss.variance) && !matchFound)
@@ -86,9 +86,9 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 			float rho = learningRate * eta;
 			float oneMinusRho = 1.0 - rho;
 
-			gauss.miB = oneMinusRho*gauss.miB + rho*bgr[0];
-			gauss.miG = oneMinusRho*gauss.miG + rho*bgr[1];
-			gauss.miR = oneMinusRho*gauss.miR + rho*bgr[2];
+			gauss.meanB = oneMinusRho*gauss.meanB + rho*bgr[0];
+			gauss.meanG = oneMinusRho*gauss.meanG + rho*bgr[1];
+			gauss.meanR = oneMinusRho*gauss.meanR + rho*bgr[2];
 			gauss.variance = oneMinusRho*gauss.variance + rho*distance;
 		}
 		else
@@ -117,9 +117,9 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 
 		Gaussian& gauss = mixture.back();
 
-		gauss.miB = bgr[0];
-		gauss.miG = bgr[1];
-		gauss.miR = bgr[2];	
+		gauss.meanB = bgr[0];
+		gauss.meanG = bgr[1];
+		gauss.meanR = bgr[2];	
 		gauss.weight = initialWeight;
 		gauss.variance = initialVariance;
 
@@ -144,9 +144,9 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 
 	float epsilon_bg = 2 * log10(2 * M_PI);
 	epsilon_bg += 3 * log10(sqrt(gauss.variance));
-	epsilon_bg += 0.5 * (bgr[0] - gauss.miB) * (bgr[0] - gauss.miB) / gauss.variance;
-	epsilon_bg += 0.5 * (bgr[1] - gauss.miG) * (bgr[1] - gauss.miG) / gauss.variance;
-	epsilon_bg += 0.5 * (bgr[2] - gauss.miR) * (bgr[2] - gauss.miR) / gauss.variance;
+	epsilon_bg += 0.5 * (bgr[0] - gauss.meanB) * (bgr[0] - gauss.meanB) / gauss.variance;
+	epsilon_bg += 0.5 * (bgr[1] - gauss.meanG) * (bgr[1] - gauss.meanG) / gauss.variance;
+	epsilon_bg += 0.5 * (bgr[2] - gauss.meanR) * (bgr[2] - gauss.meanR) / gauss.variance;
 
 	return epsilon_bg > foregroundThreshold;
 }

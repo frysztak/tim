@@ -10,9 +10,9 @@ class Background
 {
 	struct Gaussian 
 	{
-		float miB;
-		float miG;
-		float miR;
+		float meanB;
+		float meanG;
+		float meanR;
 		float variance;
 		float weight;
 
