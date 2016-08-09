@@ -2,7 +2,8 @@
 #define BACKGROUND_H
 
 #include <opencv2/opencv.hpp>
-#include <vector>
+
+#define GAUSSIANS_PER_PIXEL 3
 
 using namespace cv;
 
@@ -13,7 +14,7 @@ class Background
 		float meanB;
 		float meanG;
 		float meanR;
-		float variance;
+		float variance = 0; // it's used to determine if Gaussian was already used or not. see findMixtureSize().
 		float weight;
 
 		bool operator>(const Gaussian& other) const
@@ -22,7 +23,7 @@ class Background
 		}
 	};
 
-	typedef std::vector<Gaussian> GaussianMixture;
+	typedef Gaussian GaussianMixture[GAUSSIANS_PER_PIXEL];
 	
 	public:
 		Background();
@@ -34,14 +35,14 @@ class Background
 	private:
 		const float initialVariance;
 		const float initialWeight;
-		const int gaussiansPerPixel;
 		const float learningRate;
 		const float foregroundThreshold;
 		
 		const float etaConst;
 
 		Mat currentBackground, currentStdDev;
-		std::vector<GaussianMixture> gaussians;
+		GaussianMixture *gaussians = nullptr;
+		int findMixtureSize(const GaussianMixture& mixture) const;
 
 		bool processPixel(const Vec3b& rgb, GaussianMixture& mixture);
 };

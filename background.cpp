@@ -3,7 +3,6 @@
 Background::Background() :
 	initialVariance(20),
 	initialWeight(0.05),
-	gaussiansPerPixel(3),
 	learningRate(0.05),
 	foregroundThreshold(8.5),
 	etaConst(pow(2 * M_PI, 3.0 / 2.0))
@@ -12,13 +11,7 @@ Background::Background() :
 
 void Background::init(const Size& size)
 {
-	gaussians.reserve(size.area());
-	for (int i = 0; i < size.area(); i++)
-	{
-		auto g = GaussianMixture();
-		g.reserve(gaussiansPerPixel);
-		gaussians.push_back(g);
-	}
+	gaussians = new GaussianMixture[size.area()];
 
 	currentBackground = Mat::zeros(size, CV_8UC3);
 	currentStdDev = Mat::zeros(size, CV_32F);
@@ -63,7 +56,6 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 {
 	double weightSum = 0.0;
 	bool matchFound = false;
-	GaussianMixture matchedGaussianMixture;
 
 	for (Gaussian& gauss : mixture)
 	{
@@ -102,20 +94,22 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 	if(!matchFound)
 	{
 		// pixel didn't match any of currently existing Gaussians.
-		if((int)mixture.size() < gaussiansPerPixel)
+		int mixtureSize = findMixtureSize(mixture);
+		if(mixtureSize < GAUSSIANS_PER_PIXEL)
 		{
 			// add new Gaussian to the list
-			mixture.emplace_back();
+			mixture[mixtureSize] = Gaussian();
 		}
 		else 
 		{
 			// we can't add another Gaussian.
 			// as per paper, let's modify least probable distribution.
 			// but first, we have to sort by (weight/variance) parameter.
-			std::sort(mixture.begin(), mixture.end(), std::greater<Gaussian>());
+			std::sort(std::begin(mixture), std::end(mixture), std::greater<Gaussian>());
+			mixtureSize = GAUSSIANS_PER_PIXEL - 1;
 		}
 
-		Gaussian& gauss = mixture.back();
+		Gaussian& gauss = mixture[mixtureSize];
 
 		gauss.meanB = bgr[0];
 		gauss.meanG = bgr[1];
@@ -136,7 +130,7 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 		gauss.weight *= invWeightSum;
 
 	// sort once again
-	std::sort(mixture.begin(), mixture.end(), std::greater<Gaussian>());
+	std::sort(std::begin(mixture), std::end(mixture), std::greater<Gaussian>());
 
 	// estimate whether pixel belongs to foreground using probability equation given by Benedek & Sziranyi
 	// calculate eplison for background
@@ -149,6 +143,14 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 	epsilon_bg += 0.5 * (bgr[2] - gauss.meanR) * (bgr[2] - gauss.meanR) / gauss.variance;
 
 	return epsilon_bg > foregroundThreshold;
+}
+
+int Background::findMixtureSize(const GaussianMixture& mixture) const
+{
+	int counter = 0;
+	for (int i = 0; i < GAUSSIANS_PER_PIXEL; i++)
+		counter += mixture[i].variance != 0 ? 1 : 0;
+	return counter;
 }
 
 const Mat& Background::getCurrentBackground() const
