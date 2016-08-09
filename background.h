@@ -21,7 +21,7 @@ class Background
 		{
 			return (this->weight/sqrt(this->variance)) > (other.weight/sqrt(other.variance));
 		}
-	};
+	} __attribute__ ((aligned (16)));
 
 	typedef Gaussian GaussianMixture[GAUSSIANS_PER_PIXEL];
 	
