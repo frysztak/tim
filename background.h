@@ -27,6 +27,7 @@ class Background
 	
 	public:
 		Background();
+		~Background();
 		void init(const Size& size);
 		void processFrame(InputArray _src, OutputArray _foregroundMask);
 		const Mat& getCurrentBackground() const;

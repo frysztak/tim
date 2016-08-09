@@ -17,6 +17,11 @@ void Background::init(const Size& size)
 	currentStdDev = Mat::zeros(size, CV_32F);
 }
 
+Background::~Background()
+{
+	delete[] gaussians;
+}
+
 void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 {
 	Mat src = _src.getMat(), foregroundMask = _foregroundMask.getMat();
