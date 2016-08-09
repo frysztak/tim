@@ -1,4 +1,5 @@
 #include "background.h"
+#include <cstdlib>
 
 Background::Background() :
 	initialVariance(20),
@@ -11,7 +12,7 @@ Background::Background() :
 
 void Background::init(const Size& size)
 {
-	gaussians = new GaussianMixture[size.area()];
+	posix_memalign((void**)&gaussians, 16, size.area() * sizeof(GaussianMixture));
 
 	currentBackground = Mat::zeros(size, CV_8UC3);
 	currentStdDev = Mat::zeros(size, CV_32F);
@@ -19,7 +20,7 @@ void Background::init(const Size& size)
 
 Background::~Background()
 {
-	delete[] gaussians;
+	free(gaussians);
 }
 
 void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
