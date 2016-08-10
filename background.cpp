@@ -104,7 +104,7 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 		if(mixtureSize < GAUSSIANS_PER_PIXEL)
 		{
 			// add new Gaussian to the list
-			mixture[mixtureSize] = Gaussian();
+			mixture[GAUSSIANS_PER_PIXEL - 1] = Gaussian();
 		}
 		else 
 		{
@@ -112,10 +112,9 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 			// as per paper, let's modify least probable distribution.
 			// but first, we have to sort by (weight/variance) parameter.
 			std::sort(std::begin(mixture), std::end(mixture), std::greater<Gaussian>());
-			mixtureSize = GAUSSIANS_PER_PIXEL - 1;
 		}
 
-		Gaussian& gauss = mixture[mixtureSize];
+		Gaussian& gauss = mixture[GAUSSIANS_PER_PIXEL - 1];
 
 		gauss.meanB = bgr[0];
 		gauss.meanG = bgr[1];
