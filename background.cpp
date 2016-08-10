@@ -100,22 +100,11 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 	if(!matchFound)
 	{
 		// pixel didn't match any of currently existing Gaussians.
-		int mixtureSize = findMixtureSize(mixture);
-		if(mixtureSize < GAUSSIANS_PER_PIXEL)
-		{
-			// add new Gaussian to the list
-			mixture[GAUSSIANS_PER_PIXEL - 1] = Gaussian();
-		}
-		else 
-		{
-			// we can't add another Gaussian.
-			// as per paper, let's modify least probable distribution.
-			// but first, we have to sort by (weight/variance) parameter.
-			std::sort(std::begin(mixture), std::end(mixture), std::greater<Gaussian>());
-		}
+		// as Grimson & Stauffer suggest, let's modify least probable distribution.
+		// but first, we have to sort by (weight/variance) parameter.
+		std::sort(std::begin(mixture), std::end(mixture), std::greater<Gaussian>());
 
 		Gaussian& gauss = mixture[GAUSSIANS_PER_PIXEL - 1];
-
 		gauss.meanB = bgr[0];
 		gauss.meanG = bgr[1];
 		gauss.meanR = bgr[2];	
@@ -148,14 +137,6 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 	epsilon_bg += 0.5 * (bgr[2] - gauss.meanR) * (bgr[2] - gauss.meanR) / gauss.variance;
 
 	return epsilon_bg > foregroundThreshold;
-}
-
-int Background::findMixtureSize(const GaussianMixture& mixture) const
-{
-	int counter = 0;
-	for (int i = 0; i < GAUSSIANS_PER_PIXEL; i++)
-		counter += mixture[i].variance != 0 ? 1 : 0;
-	return counter;
 }
 
 const Mat& Background::getCurrentBackground() const
