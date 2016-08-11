@@ -12,7 +12,7 @@ Background::Background() :
 
 void Background::init(const Size& size)
 {
-	posix_memalign((void**)&gaussians, 16, size.area() * sizeof(GaussianMixture));
+	posix_memalign((void**)&gaussians, 16, size.area() * 5 * sizeof(float) * GAUSSIANS_PER_PIXEL);
 
 	currentBackground = Mat::zeros(size, CV_8UC3);
 	currentStdDev = Mat::zeros(size, CV_32F);

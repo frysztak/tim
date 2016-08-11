@@ -94,7 +94,7 @@ void Tim::processFrames()
 			videoCapture >> inputFrame;
 			resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
 			
-			background.processFrame(inputFrame, foregroundMask);
+			background.processFrameSIMD(inputFrame, foregroundMask);
 		}
 
 		shadowMask = Mat::zeros(frameSize, CV_8U);
