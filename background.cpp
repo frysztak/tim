@@ -42,12 +42,14 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 			bgr[1] = *srcPtr++; 
 			bgr[2] = *srcPtr++; 
 				
-			GaussianMixture& mog = gaussians[idx];
-			bool foreground = processPixel(bgr, mog);
+			GaussianMixture& mixture = gaussians[idx];
+			bool foreground = processPixel(bgr, mixture);
 			*foregroundMaskPtr++ = foreground ? 1 : 0;
 
 			// update current background model (or rather, background image)
-			auto& gauss = mog[0];
+			const Gaussian& gauss = *std::max_element(std::begin(mixture), std::end(mixture), 
+					[](const Gaussian& a, const Gaussian& b) { return a.weight < b.weight; });
+
 			*currentBackgroundPtr++ = gauss.meanB;
 			*currentBackgroundPtr++ = gauss.meanG;
 			*currentBackgroundPtr++ = gauss.meanR;
@@ -101,10 +103,10 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 	{
 		// pixel didn't match any of currently existing Gaussians.
 		// as Grimson & Stauffer suggest, let's modify least probable distribution.
-		// but first, we have to sort by (weight/variance) parameter.
-		std::sort(std::begin(mixture), std::end(mixture), std::greater<Gaussian>());
+		
+		Gaussian& gauss = *std::min_element(std::begin(mixture), std::end(mixture), 
+			[](const Gaussian& a, const Gaussian& b) { return a.weight < b.weight; });
 
-		Gaussian& gauss = mixture[GAUSSIANS_PER_PIXEL - 1];
 		gauss.meanB = bgr[0];
 		gauss.meanG = bgr[1];
 		gauss.meanR = bgr[2];	
@@ -123,12 +125,10 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 	for (Gaussian& gauss : mixture)
 		gauss.weight *= invWeightSum;
 
-	// sort once again
-	std::sort(std::begin(mixture), std::end(mixture), std::greater<Gaussian>());
-
 	// estimate whether pixel belongs to foreground using probability equation given by Benedek & Sziranyi
 	// calculate eplison for background
-	const Gaussian& gauss = mixture[0];
+	const Gaussian& gauss = *std::max_element(std::begin(mixture), std::end(mixture), 
+			[](const Gaussian& a, const Gaussian& b) { return a.weight < b.weight; });
 
 	float epsilon_bg = 2 * log10(2 * M_PI);
 	epsilon_bg += 3 * log10(sqrt(gauss.variance));
