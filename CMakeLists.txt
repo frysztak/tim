@@ -39,6 +39,7 @@ file(GLOB SOURCES *.cpp)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+set_source_files_properties(main.cpp PROPERTIES COMPILE_FLAGS -Wno-unused-parameter)
 
 #add_definitions(-DDEBUG)
 ## 1. Compile...
