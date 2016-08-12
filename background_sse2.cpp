@@ -256,7 +256,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 		dR = _mm_mul_ps(_mm_set1_ps(0.5), _mm_mul_ps(dR, dR));
 		newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_div_ps(dR, variance));
 
-		__m128 newFgMask = _mm_cmpgt_ps(newEpsilon_bg, _mm_set1_ps(18.5));
+		__m128 newFgMask = _mm_cmpgt_ps(newEpsilon_bg, _mm_set1_ps(foregroundThreshold));
 		fgMask = _mm_or_ps(_mm_and_ps(isMax, newFgMask), _mm_andnot_ps(isMax, fgMask));
 		
 		bgB = _mm_or_ps(_mm_and_ps(isMax, meanB), _mm_andnot_ps(isMax, bgB));

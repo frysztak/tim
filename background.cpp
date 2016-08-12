@@ -5,7 +5,7 @@ Background::Background() :
 	initialVariance(20),
 	initialWeight(0.05),
 	learningRate(0.05),
-	foregroundThreshold(8.5),
+	foregroundThreshold(14.5),
 	etaConst(pow(2 * M_PI, 3.0 / 2.0))
 {
 }
@@ -138,8 +138,8 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 	const Gaussian& gauss = *std::max_element(std::begin(mixture), std::end(mixture), 
 			[](const Gaussian& a, const Gaussian& b) { return a.weight < b.weight; });
 
-	float epsilon_bg = 2 * log10(2 * M_PI);
-	epsilon_bg += 3 * log10(sqrt(gauss.variance));
+	float epsilon_bg = 2 * log(2 * M_PI);
+	epsilon_bg += 3 * log(sqrt(gauss.variance));
 	epsilon_bg += 0.5 * (bgr[0] - gauss.meanB) * (bgr[0] - gauss.meanB) / gauss.variance;
 	epsilon_bg += 0.5 * (bgr[1] - gauss.meanG) * (bgr[1] - gauss.meanG) / gauss.variance;
 	epsilon_bg += 0.5 * (bgr[2] - gauss.meanR) * (bgr[2] - gauss.meanR) / gauss.variance;
