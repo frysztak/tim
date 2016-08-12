@@ -12,7 +12,11 @@ Background::Background() :
 
 void Background::init(const Size& size)
 {
+#ifdef SIMD
 	posix_memalign((void**)&gaussians, 16, size.area() * 5 * sizeof(float) * GAUSSIANS_PER_PIXEL);
+#else
+	gaussians = new GaussianMixture[size.area()];
+#endif
 
 	currentBackground = Mat::zeros(size, CV_8UC3);
 	currentStdDev = Mat::zeros(size, CV_32F);
@@ -20,7 +24,11 @@ void Background::init(const Size& size)
 
 Background::~Background()
 {
+#ifdef SIMD
 	free(gaussians);
+#else
+	delete[] gaussians;
+#endif
 }
 
 void Background::processFrame(InputArray _src, OutputArray _foregroundMask)

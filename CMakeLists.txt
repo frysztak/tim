@@ -31,14 +31,23 @@ ExternalProject_Get_Property(catch source_dir)
 set(CATCH_INCLUDE_DIR ${source_dir}/include CACHE INTERNAL "Path to include folder for Catch")
 set(CMAKE_EXPORT_COMPILE_COMMANDS "ON")
 
+# custom options
+option(SIMD "Use SIMD optimizations" ON)
+if (SIMD)
+	add_definitions(-DSIMD)
+endif()
+
+option(PROFILE "Add flags that make it possible to profile the app with Callgrind" OFF)
+if (PROFILE)
+	set(CMAKE_BUILD_TYPE Release)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wa,--gstabs -save-temps")
+endif()
+
 ## Find all source files to be compiled into object files
 file(GLOB SOURCES *.cpp)
 
 ## C++ compiler options
-#set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14 -Wa,--gstabs -save-temps")
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++14")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -std=c++14")
 set_source_files_properties(main.cpp PROPERTIES COMPILE_FLAGS -Wno-unused-parameter)
 
 #add_definitions(-DDEBUG)
