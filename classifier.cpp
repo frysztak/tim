@@ -1,10 +1,9 @@
 #include "classifier.h"
 #include <vector>
 
-void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask)
+void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, InputArray _roiMask)
 {
-	Mat frame = _frame.getMat();
-	Mat mask = _mask.getMat();
+	Mat frame = _frame.getMat(), mask = _mask.getMat(), roiMask = _roiMask.getMat();
 
 	// find contours in binary mask
 	std::vector<Mat> contours;
@@ -13,8 +12,17 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask)
 	// for already detected objects: predict next position.
 	// if prediction fails, remove object.
 	objects.erase(std::remove_if(objects.begin(), objects.end(), 
-				[&](Object& obj) { return !obj.tracker->update(frame, obj.rect); }),
-				objects.end());
+				[&](Object& obj) 
+				{
+					if (!obj.tracker->update(frame, obj.rect))
+						return true; // update failed
+					// update succeded, test if predicted points lies within roi polygon
+					auto tl = obj.rect.tl();
+					auto br = obj.rect.br();
+					if (roiMask.at<uint8_t>(tl) == 0 || roiMask.at<uint8_t>(br) == 0)
+						return true;
+					return false;
+				}), objects.end());
 
 	for (auto& contour: contours)
 	{
@@ -23,14 +31,14 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask)
 
 		auto contourRect = boundingRect(contour);
 		bool contourMatched = false;
-		rectangle( frame, contourRect, Scalar( 0, 0, 255 ), 2, 1 );
+		//rectangle( frame, contourRect, Scalar( 0, 0, 255 ), 2, 1 );
 
 		for (auto& obj: objects)
 		{
 			if (obj.doRectsOverlap(contourRect))
 			{
 				// we found a bigger rect
-				obj.tracker = Tracker::create("MEDIANFLOW");
+				obj.tracker = Tracker::create(trackerType);
 				obj.tracker->init(frame, contourRect);
 				obj.rect = contourRect;
 				contourMatched = true;
@@ -41,7 +49,7 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask)
 		if (!contourMatched)
 		{
 			auto obj = Object();
-			obj.tracker = Tracker::create("MEDIANFLOW");
+			obj.tracker = Tracker::create(trackerType);
 			obj.tracker->init(frame, contourRect);
 			obj.rect = contourRect;
 			obj.ID = objCounter++;
@@ -51,7 +59,7 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask)
 	
 	for (auto& obj: objects)
 	{
-		rectangle( frame, obj.rect, Scalar( 255, 0, 0 ), 1, 1 );
+		rectangle( frame, obj.rect, Scalar( 255, 0, 0 ), 2, 1 );
 
 		std::string text = std::to_string(obj.ID);
 		int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
@@ -59,8 +67,7 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask)
 		int thickness = 2;
 
 		// center the text
-		Point textOrg = obj.rect.tl();
-		putText(frame, text, textOrg, fontFace, fontScale,
+		putText(frame, text, obj.rect.tl(), fontFace, fontScale,
 				        Scalar::all(255), thickness, 8);
 	}
 

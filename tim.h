@@ -35,6 +35,7 @@ class Tim
 		VideoCapture videoCapture;
 		VideoWriter videoWriter;
 		Size frameSize;
+		Mat roiMask;
 
 		int socket;
 };

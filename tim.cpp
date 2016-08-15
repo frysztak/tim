@@ -66,6 +66,17 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	background.init(this->frameSize);
 	shadows = new Shadows(json);
 
+	roiMask = Mat::zeros(frameSize, CV_8U);
+	std::vector<Point> roiPoints, roiPolygon;
+	for (const Json& list: json["roi"].array_items())
+	{
+		const Json& innerList = list.array_items();
+		roiPoints.emplace_back(innerList[0].number_value()*frameSize.width, 
+							   innerList[1].number_value()*frameSize.height);
+	}
+	approxPolyDP(roiPoints, roiPolygon, 1.0, true);
+	fillConvexPoly(roiMask, &roiPolygon[0], roiPolygon.size(), 255, 8, 0); 
+
 	if (morphFilterSize != 0)
 		morphKernel = getStructuringElement(MORPH_ELLIPSE, Size(morphFilterSize, morphFilterSize));
 
@@ -111,12 +122,12 @@ void Tim::processFrames()
 		//if (morphFilterSize != 0)
 		//	morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, morphKernel);
 
-		if (!benchmarkMode)
+		if (!benchmarkMode && !paused)
 		{
 			Mat foregroundMaskBGR, row1, row2;
 
 			inputFrame.copyTo(displayFrame);
-			classifier.DrawBoundingBoxes(displayFrame, shadowMask == 2);
+			classifier.DrawBoundingBoxes(displayFrame, (shadowMask == 2) & roiMask, roiMask);
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 			hconcat(displayFrame, foregroundMaskBGR, row1);
 
