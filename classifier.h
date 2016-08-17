@@ -15,7 +15,9 @@ class Classifier
 		struct Object
 		{
 			Rect2d rect;
-			Ptr<Tracker> tracker;
+			Mat mask;
+			int featuresLastUpdated = 0;
+			std::vector<Point2f> prevFeatures, features;
 			int ID = 0;
 
 			bool doRectsOverlap(Rect2d newRect) const
@@ -24,8 +26,15 @@ class Classifier
 				if (r.area() > 0) return true;
 				return false;
 			}
+
+			friend bool operator==(const Object& lhs, const Object& rhs)
+			{
+				return lhs.ID == rhs.ID; 
+			}
 		};
 
+		Mat prevFrame;
+		int frameCounter = 0;
 		int objCounter = 0;
 		std::vector<Object> objects;
 		const std::string trackerType = "MEDIANFLOW";
