@@ -16,13 +16,29 @@ struct Segment
 struct MovingObject
 {
 	std::vector<Segment> segments;
-	Mat segmentLabels, mask;
+	Mat segmentLabels, mask, miniMask;
 	Rect selector;
 
+	// for tracking
+	std::vector<Point2f> prevFeatures, features;
+	uint32_t ID = 0, featuresLastUpdated = 0;
+	bool remove = false;
+
+	MovingObject() {};
 	MovingObject(const Size& size)
 	{
 		mask = Mat::zeros(size, CV_8U);
 	};
+
+	void minimizeMask()
+	{
+		Rect rect = boundingRect(this->mask);
+		Size newSize = rect.size();
+		auto offset = rect.tl();
+
+		this->selector = Rect(offset.x, offset.y, newSize.width, newSize.height);
+		this->miniMask = this->mask(this->selector);
+	}
 };
 
 #endif

@@ -25,7 +25,7 @@ class Tim
 		uint morphFilterSize = 0;
 		bool paused = false;
 		bool benchmarkMode = false, record = false;
-		bool removeShadows = true;
+		bool removeShadows = false;
 		uint32_t frameCount = 0;
 		Mat morphKernel;
 
@@ -37,7 +37,11 @@ class Tim
 		Size frameSize;
 		Mat roiMask;
 
+		std::vector<MovingObject> movingObjects;
+
 		int socket;
+
+		void detectMovingObjects(InputArray _fgMask);
 };
 
 #endif

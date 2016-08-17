@@ -3,13 +3,14 @@
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/tracking.hpp>
+#include "movingobject.h"
 
 using namespace cv;
 
 class Classifier
 {
 	public:
-		void DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, InputArray _roiMask);
+		void DrawBoundingBoxes(InputOutputArray _frame, InputArray _fgMask, std::vector<MovingObject>& objects);
 
 	private:
 		struct Object
@@ -36,8 +37,7 @@ class Classifier
 		Mat prevFrame;
 		int frameCounter = 0;
 		int objCounter = 0;
-		std::vector<Object> objects;
-		const std::string trackerType = "MEDIANFLOW";
+		std::vector<MovingObject> classifiedObjects;
 };
 
 #endif

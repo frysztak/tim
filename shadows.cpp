@@ -52,7 +52,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	movingObjects.erase(it, movingObjects.end());
 
 	for (auto& obj: movingObjects)
-		minimizeObjectMask(obj);
+		obj.minimizeMask();
 
 	// calculate D (eq. 7) 
 	D = Mat::zeros(frame.size(), CV_32FC3);
@@ -81,10 +81,10 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 		if (params.autoGradientThreshold)
 		{
 			// calculate gradient threshold
-			float objSize = countNonZero(object.mask);
+			float objSize = countNonZero(object.miniMask);
 			Mat objBg, objStdDev;
-			background(object.selector).copyTo(objBg, object.mask);
-			backgroundStdDev(object.selector).copyTo(objStdDev, object.mask);
+			background(object.selector).copyTo(objBg, object.miniMask);
+			backgroundStdDev(object.selector).copyTo(objStdDev, object.miniMask);
 
 			Scalar meanSum = cv::sum(objBg);
 			Scalar stdDevSum = cv::sum(objStdDev);
@@ -97,14 +97,14 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 #endif
 		}
 
-		Mat segmentLabels = Mat::zeros(object.mask.size(), CV_16U);
+		Mat segmentLabels = Mat::zeros(object.miniMask.size(), CV_16U);
 		int currentLabel = 0;
 		
-		for (int r = 0; r < object.mask.rows; r++)
+		for (int r = 0; r < object.miniMask.rows; r++)
 		{
-			for (int c = 0; c < object.mask.cols; c++)
+			for (int c = 0; c < object.miniMask.cols; c++)
 			{
-				if (object.mask.at<uint8_t>(r, c) == 0 || segmentLabels.at<uint16_t>(r, c) != 0)
+				if (object.miniMask.at<uint8_t>(r, c) == 0 || segmentLabels.at<uint16_t>(r, c) != 0)
 					continue;
 				
 				findSegment(object, Point(r, c), segmentLabels, ++currentLabel, grThr);
@@ -154,7 +154,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 #endif
 
 			// size criterion (eq. 11)
-			bool size_ok = segment.area > params.lambda * countNonZero(object.mask);
+			bool size_ok = segment.area > params.lambda * countNonZero(object.miniMask);
 #if DEBUG
 			if (size_ok)
 				sizeCriterion(selector).setTo(1, segment.mask);
@@ -231,7 +231,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 void Shadows::findSegment(MovingObject& object, Point startPoint, InputOutputArray _segmentLabels, 
 		 uint16_t label, float gradientThreshold)
 {
-	Mat labels = _segmentLabels.getMat(), objectMask = object.mask, 
+	Mat labels = _segmentLabels.getMat(), objectMask = object.miniMask, 
 		segmentMask = Mat::zeros(objectMask.size(), CV_8U),
 		visited = Mat::zeros(objectMask.size(), CV_8U); 
 
@@ -372,14 +372,4 @@ void Shadows::showSegmentation(int nSegments, InputArray _labels)
 		segmentLabelsColour.at<Vec3b>(idx) = colors[label];
 	}
 	imshow("segments", segmentLabelsColour);
-}
-
-void Shadows::minimizeObjectMask(MovingObject& obj)
-{
-	Rect rect = boundingRect(obj.mask);
-	Size newSize = rect.size();
-	auto offset = rect.tl();
-
-	obj.selector = Rect(offset.x, offset.y, newSize.width, newSize.height);
-	obj.mask = obj.mask(obj.selector);
 }

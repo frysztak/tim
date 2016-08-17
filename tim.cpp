@@ -88,6 +88,8 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	this->benchmarkMode = benchmark;
 	this->record = record;
 
+	videoCapture.set(CV_CAP_PROP_POS_MSEC, 36*1000);
+
 	return true;
 }
 
@@ -110,6 +112,7 @@ void Tim::processFrames()
 #else
 			background.processFrame(inputFrame, foregroundMask);
 #endif
+			detectMovingObjects(foregroundMask);
 		}
 
 		shadowMask = Mat::zeros(frameSize, CV_8U);
@@ -127,7 +130,8 @@ void Tim::processFrames()
 			Mat foregroundMaskBGR, row1, row2;
 
 			inputFrame.copyTo(displayFrame);
-			classifier.DrawBoundingBoxes(displayFrame, (shadowMask == 2) & roiMask, roiMask);
+			//classifier.DrawBoundingBoxes(displayFrame, (shadowMask == 2) & roiMask, roiMask);	
+			classifier.DrawBoundingBoxes(displayFrame, foregroundMask & roiMask, movingObjects);
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 			hconcat(displayFrame, foregroundMaskBGR, row1);
 
@@ -174,4 +178,31 @@ void Tim::processFrames()
 		std::cout << "processed " << BENCHMARK_FRAMES_NUM << " frames in " << time_span.count() << " seconds." << std::endl;
 		std::cout << "average " << BENCHMARK_FRAMES_NUM / time_span.count() << " fps. " << std::endl;
 	}
+}
+
+void Tim::detectMovingObjects(InputArray _fgMask)
+{
+	Mat fgMask = _fgMask.getMat(), objectLabels;
+	movingObjects.clear();
+
+	// object masks: segment foreground mask into separate moving movingObjects
+	int nLabels = connectedComponents(fgMask, objectLabels, 8, CV_16U);
+	for (int label = 0; label < nLabels; label++)
+		movingObjects.emplace_back(objectLabels.size());
+	
+	for (int idx = 0; idx < objectLabels.rows*objectLabels.cols; idx++)
+	{
+		uint16_t label = objectLabels.at<uint16_t>(idx);
+		if (label == 0) continue;
+
+		movingObjects[label].mask.at<uint8_t>(idx) = 1;
+	}
+
+	// remove tiniest objects 
+	auto it = std::remove_if(movingObjects.begin(), movingObjects.end(), 
+			[&](MovingObject& object) { return countNonZero(object.mask) < 100; });
+	movingObjects.erase(it, movingObjects.end());
+
+	for (auto& obj: movingObjects)
+		obj.minimizeMask();
 }
