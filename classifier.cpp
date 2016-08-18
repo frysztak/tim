@@ -151,8 +151,7 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 
 	for (auto& obj: classifiedObjects)
 	{
-		auto r = boundingRect(obj.features);
-		//rectangle(dispFrame, obj.selector, Scalar( 255, 0, 0 ), 2, 1 );
+		rectangle(dispFrame, obj.selector, Scalar( 255, 0, 0 ), 2, 1 );
 
 		std::string text = std::to_string(obj.ID);
 		int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
