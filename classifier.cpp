@@ -1,6 +1,5 @@
 #include "classifier.h"
 #include <vector>
-#include <set>
 
 void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, std::vector<MovingObject>& movingObjects)
 {
@@ -9,6 +8,7 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 	cvtColor(frame, grayFrame, COLOR_BGR2GRAY);
 	Mat dispFrame = frame.clone();
 
+	// predict next position for already recognised objects
 	for (auto& object: classifiedObjects)
 	{
 		if (object.prevFeatures.size() > 0)
@@ -18,14 +18,13 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 	classifiedObjects.erase(std::remove_if(classifiedObjects.begin(), classifiedObjects.end(),
 				[](MovingObject& o) { return o.remove; }), classifiedObjects.end());
 
+	// iterate over all detected moving objects and try match them
+	// to already known objects saved in 'classifiedObjects'.
 	std::vector<MovingObject> objsToAdd;
 	for (auto& object: movingObjects)
 	{
 		auto objMask = object.mask;
-		auto contourRect = boundingRect(objMask);
-		bool contourMatched = false;
-		//rectangle( frame, contourRect, Scalar( 0, 0, 255 ), 2, 1 );		
-		//imshow("objMask", 255*objMask);
+		bool objectMatched = false;
 
 		// check if predicted feature positions are still within object mask.
 		// if not - it's probably a different object.
@@ -35,28 +34,33 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 
 		for (auto& classifiedObj: classifiedObjects)
 		{
-			//imshow("obj", 255*obj.mask);
-			//waitKey(0);
-			uint32_t pointsMatched = 0;
+			int pointsMatched = 0;
 			for (auto& pt: classifiedObj.features)
 				pointsMatched += objMask.at<uint8_t>(pt);
 
+#ifdef DEBUG
 			std::cout << "ID: " << classifiedObj.ID << ", matched " << pointsMatched << " out of " 
 				<< classifiedObj.features.size() << std::endl;
+#endif
 
-			if (classifiedObj.features.size() > 0 && pointsMatched >= 0.5 * classifiedObj.features.size())
+			if (pointsMatched >= 0.5 * classifiedObj.features.size())
 			{
-				contourMatched = true;
+				objectMatched = true;
 				classifiedObj.mask = objMask;
 				classifiedObj.minimizeMask();
-				std::cout << "ID " << classifiedObj.ID << " matched" << std::endl;
 				objectsToMerge.push_back(&classifiedObj);
+#ifdef DEBUG
+				std::cout << "ID " << classifiedObj.ID << " matched" << std::endl;
+#endif
 			}
 		}
 
+		// merge objects if necessary
 		if (objectsToMerge.size() > 1)
 		{
+#ifdef DEBUG
 			std::cout << objectsToMerge.size() << " objects to merge" << std::endl;
+#endif
 
 			auto obj = MovingObject(frame.size());
 			obj.ID = objectsToMerge.front()->ID;
@@ -72,7 +76,9 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 			objsToAdd.push_back(obj);
 		}
 
-		if (!contourMatched)
+		// in case some object isn't matched with already known objects,
+		// add a new one to the list
+		if (!objectMatched)
 		{
 			object.updateTrackedFeatures(grayFrame, frameCounter);
 			if (object.features.size() == 0)
@@ -85,6 +91,14 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 	
 	for (auto& obj: objsToAdd)
 		classifiedObjects.push_back(obj);
+
+	for (auto& obj: classifiedObjects)
+	{
+		if (obj.features.size() < 4 || frameCounter - obj.featuresLastUpdated >= 10)
+			obj.updateTrackedFeatures(grayFrame, frameCounter);
+
+		std::swap(obj.prevFeatures, obj.features);
+	}
 
 	for (auto& obj: classifiedObjects)
 	{
@@ -101,19 +115,10 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 
 		for (auto& pt: obj.features)
 			circle(dispFrame, pt, 2, Scalar::all(255));
-
-		if (obj.features.size() < 4 || frameCounter - obj.featuresLastUpdated >= 10)
-		{
-			std::cout << "updating ID " << obj.ID << "..." << std::endl;
-			obj.updateTrackedFeatures(grayFrame, frameCounter);
-		}
-
-		std::swap(obj.prevFeatures, obj.features);
 	}
-	
+
 	prevFrame = grayFrame.clone();
 	frameCounter++;
-	std::cout << "currently " << movingObjects.size() << " objects" << std::endl;
 	imshow("lucas", dispFrame);
 
 	//	RotatedRect rect = minAreaRect(contour);
