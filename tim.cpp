@@ -21,6 +21,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	string err, jsonString((std::istreambuf_iterator<char>(jsonFile)), std::istreambuf_iterator<char>());
 	auto json = Json::parse(jsonString, err);
 
+	removeShadows = json["shadowDetection"].bool_value();
 	medianFilterSize = json["medianFilterSize"].int_value();
 	morphFilterSize = json["morphKernel"].int_value();
 	
@@ -117,9 +118,11 @@ void Tim::processFrames()
 		}
 
 		shadowMask = Mat::zeros(frameSize, CV_8U);
-		if (removeShadows)
+		if (!paused && removeShadows)
+		{
 			shadows->removeShadows(inputFrame, background.getCurrentBackground(), background.getCurrentStdDev(), 
-					foregroundMask, shadowMask);
+					foregroundMask, objectLabels, movingObjects, shadowMask);
+		}
 
 		if (medianFilterSize != 0)
 			medianBlur(foregroundMask, foregroundMask, medianFilterSize);
@@ -131,8 +134,9 @@ void Tim::processFrames()
 			Mat foregroundMaskBGR, row1, row2;
 
 			inputFrame.copyTo(displayFrame);
-			//classifier.DrawBoundingBoxes(displayFrame, (shadowMask == 2) & roiMask, roiMask);	
-			classifier.DrawBoundingBoxes(displayFrame, foregroundMask, movingObjects);
+			Mat mask = removeShadows ? (shadowMask == 2) : foregroundMask;
+			classifier.DrawBoundingBoxes(displayFrame, mask, movingObjects);
+
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 			hconcat(displayFrame, foregroundMaskBGR, row1);
 
@@ -183,7 +187,7 @@ void Tim::processFrames()
 
 void Tim::detectMovingObjects(InputArray _fgMask)
 {
-	Mat fgMask = _fgMask.getMat(), objectLabels;
+	Mat fgMask = _fgMask.getMat();
 	movingObjects.clear();
 
 	// object masks: segment foreground mask into separate moving movingObjects

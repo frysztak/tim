@@ -35,7 +35,7 @@ class Tim
 		VideoCapture videoCapture;
 		VideoWriter videoWriter;
 		Size frameSize;
-		Mat roiMask;
+		Mat roiMask, objectLabels;
 
 		std::vector<MovingObject> movingObjects;
 

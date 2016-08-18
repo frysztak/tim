@@ -26,33 +26,12 @@ void Shadows::updateParameters(const json11::Json& json)
 	this->params.parse(json);
 }
 
-void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, OutputArray _dst)
+void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, 
+		InputArray _objectLabels, std::vector<MovingObject>& movingObjects, OutputArray _dst)
 {
 	Mat frame = _src.getMat(), background = _bg.getMat(), backgroundStdDev = _bgStdDev.getMat(),
-		foregroundMask = _fgMask.getMat(), labelMask = _dst.getMat(), 
-		shadowMask = Mat::zeros(frame.size(), CV_8U);
-
-	// object masks: segment foreground mask into separate moving movingObjects
-	int nLabels = connectedComponents(foregroundMask, objectLabels, 8, CV_16U);
-	std::vector<MovingObject> movingObjects;
-	for (int label = 0; label < nLabels; label++)
-		movingObjects.emplace_back(objectLabels.size());
-	
-	for (int idx = 0; idx < objectLabels.rows*objectLabels.cols; idx++)
-	{
-		uint16_t label = objectLabels.at<uint16_t>(idx);
-		if (label == 0) continue;
-
-		movingObjects[label].mask.at<uint8_t>(idx) = 1;
-	}
-
-	// remove tiniest movingObjects	
-	auto it = std::remove_if(movingObjects.begin(), movingObjects.end(), 
-			[&](MovingObject& object) { return countNonZero(object.mask) < params.minObjectSize; });
-	movingObjects.erase(it, movingObjects.end());
-
-	for (auto& obj: movingObjects)
-		obj.minimizeMask();
+		foregroundMask = _fgMask.getMat(), objectLabels = _objectLabels.getMat(), 
+		labelMask = _dst.getMat(), shadowMask = Mat::zeros(frame.size(), CV_8U);
 
 	// calculate D (eq. 7) 
 	D = Mat::zeros(frame.size(), CV_32FC3);
@@ -224,6 +203,13 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 
 	fillInBlanks(foregroundMask, shadowMask);
 	//showSegmentation(nLabels, objectLabels);
+	
+	Mat onlyShadows = (shadowMask == 1);
+	for (auto& obj: movingObjects)
+	{
+		obj.mask -= onlyShadows;
+		obj.minimizeMask();
+	}
 	
 	shadowMask.copyTo(_dst);
 }

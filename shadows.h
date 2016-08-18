@@ -26,12 +26,13 @@ class Shadows
 		void minimizeObjectMask(MovingObject& obj);
 		void showSegmentation(int nSegments, InputArray _labels);
 
-		Mat objectLabels, D;
+		Mat D;
 		
 	public:
 		Shadows(const json11::Json& jsonString);
 		void updateParameters(const json11::Json& jsonString);
-		void removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, OutputArray _dst);
+		void removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDev, InputArray _fgMask, 
+				InputArray _objectLabels, std::vector<MovingObject>& movingObjects, OutputArray _dst);
 };
 
 
