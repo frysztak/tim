@@ -6,7 +6,6 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 	Mat frame = _frame.getMat(), mask = _mask.getMat();
 	Mat grayFrame;
 	cvtColor(frame, grayFrame, COLOR_BGR2GRAY);
-	Mat dispFrame = frame.clone();
 
 	// predict next position for already recognised objects
 	for (auto& object: classifiedObjects)
@@ -102,24 +101,23 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 
 	for (auto& obj: classifiedObjects)
 	{
-		rectangle(dispFrame, obj.selector, Scalar( 255, 0, 0 ), 2, 1 );
+		rectangle(frame, obj.selector, Scalar(255, 0, 0), 2, 1);
 
 		std::string text = std::to_string(obj.ID);
 		int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
-		double fontScale = 0.6;
+		double fontScale = 0.5;
 		int thickness = 2;
 
 		// center the text
-		putText(dispFrame, text, obj.selector.tl(), fontFace, fontScale,
-				        Scalar::all(255), thickness, 8);
+		putText(frame, text, obj.selector.tl(), fontFace, fontScale,
+		        Scalar::all(255), thickness, 8);
 
 		for (auto& pt: obj.features)
-			circle(dispFrame, pt, 2, Scalar::all(255));
+			circle(frame, pt, 3, Scalar(255, 0, 255));
 	}
 
 	prevFrame = grayFrame.clone();
 	frameCounter++;
-	imshow("lucas", dispFrame);
 
 	//	RotatedRect rect = minAreaRect(contour);
 	//	Point2f vtx[4];
