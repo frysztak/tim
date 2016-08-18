@@ -106,45 +106,20 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 			}
 			
 			obj.minimizeMask();
-			// update features
-			std::vector<Point2f> features;
-			cv::goodFeaturesToTrack(grayFrame(obj.selector), // the image 
-					features,   // the output detected features
-					10,  // the maximum number of features 
-					0.01,     // quality level
-					8, // min distance between two features
-					obj.miniMask	
-					);
-
-			for(auto& pt: features)
-				pt += (Point2f)object.selector.tl();
-
-			obj.features = features;
+			obj.updateTrackedFeatures(grayFrame, frameCounter);
 			objsToAdd.push_back(obj);
 		}
 
 		if (!contourMatched)
 		{
-			cv::goodFeaturesToTrack(grayFrame(object.selector), // the image 
-					object.features,   // the output detected features
-					10,  // the maximum number of features 
-					0.01,     // quality level
-					8, // min distance between two features
-				    object.miniMask	
-					);
-
-			for(auto& pt: object.features)
-				pt += (Point2f)object.selector.tl();
-
+			object.updateTrackedFeatures(grayFrame, frameCounter);
 			if (object.features.size() == 0)
 				continue;
 
 			object.ID = objCounter++;
-			object.featuresLastUpdated = frameCounter;
 			objsToAdd.push_back(object);
 		}
 	}
-	
 	
 	for (auto& obj: objsToAdd)
 		classifiedObjects.push_back(obj);
@@ -165,27 +140,10 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 		for (auto& pt: obj.features)
 			circle(dispFrame, pt, 2, Scalar::all(255));
 
-
-		//if (frameCounter - obj.featuresLastUpdated >= 15)
-		if (obj.features.size() < 5 || frameCounter - obj.featuresLastUpdated >= 10)
+		if (obj.features.size() < 4 || frameCounter - obj.featuresLastUpdated >= 10)
 		{
 			std::cout << "updating ID " << obj.ID << "..." << std::endl;
-			std::vector<Point2f> newFeatures;
-			cv::goodFeaturesToTrack(grayFrame(obj.selector), // the image 
-					newFeatures,   // the output detected features
-					10,  // the maximum number of features 
-					0.01,     // quality level
-					8, // min distance between two features
-					obj.miniMask
-					);
-
-			if (newFeatures.size() > 1)
-			{
-				for(auto& pt: newFeatures)
-					pt += (Point2f)obj.selector.tl();
-				obj.features = newFeatures;
-				obj.featuresLastUpdated = frameCounter;
-			}
+			obj.updateTrackedFeatures(grayFrame, frameCounter);
 		}
 
 		std::swap(obj.prevFeatures, obj.features);

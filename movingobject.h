@@ -10,35 +10,29 @@ struct Segment
 	Mat mask;
 	int area;
 
-	Segment(Mat& mask, int area) : mask(mask), area(area) { };
+	Segment(Mat& mask, int area);
 };
 
-struct MovingObject
+class MovingObject
 {
-	std::vector<Segment> segments;
-	Mat segmentLabels, mask, miniMask;
-	Rect selector;
+	private:
+		int maxNumberOfFeatures;
+		float featureQualityLevel;
+		int minDistanceBetweenFeatures;
 
-	// for tracking
-	std::vector<Point2f> prevFeatures, features;
-	uint32_t ID = 0, featuresLastUpdated = 0;
-	bool remove = false;
+	public:
+		std::vector<Segment> segments;
+		Mat segmentLabels, mask, miniMask;
+		Rect selector;
 
-	MovingObject() {};
-	MovingObject(const Size& size)
-	{
-		mask = Mat::zeros(size, CV_8U);
-	};
+		// for tracking
+		std::vector<Point2f> prevFeatures, features;
+		uint32_t ID = 0, featuresLastUpdated = 0;
+		bool remove = false;
 
-	void minimizeMask()
-	{
-		Rect rect = boundingRect(this->mask);
-		Size newSize = rect.size();
-		auto offset = rect.tl();
-
-		this->selector = Rect(offset.x, offset.y, newSize.width, newSize.height);
-		this->miniMask = this->mask(this->selector);
-	}
+		MovingObject(const Size& size);
+		void minimizeMask();
+		void updateTrackedFeatures(InputArray _grayFrame, uint32_t frameNumber);
 };
 
 #endif
