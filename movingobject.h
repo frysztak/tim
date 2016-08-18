@@ -7,10 +7,10 @@ using namespace cv;
 
 struct Segment
 {
+	Segment(Mat& mask, int area);
+
 	Mat mask;
 	int area;
-
-	Segment(Mat& mask, int area);
 };
 
 class MovingObject
@@ -21,6 +21,8 @@ class MovingObject
 		int minDistanceBetweenFeatures;
 
 	public:
+		MovingObject(const Size& size);
+
 		std::vector<Segment> segments;
 		Mat segmentLabels, mask, miniMask;
 		Rect selector;
@@ -30,7 +32,6 @@ class MovingObject
 		uint32_t ID = 0, featuresLastUpdated = 0;
 		bool remove = false;
 
-		MovingObject(const Size& size);
 		void minimizeMask();
 		void updateTrackedFeatures(InputArray _grayFrame, uint32_t frameNumber);
 };
