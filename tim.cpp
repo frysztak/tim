@@ -112,6 +112,7 @@ void Tim::processFrames()
 #else
 			background.processFrame(inputFrame, foregroundMask);
 #endif
+			foregroundMask &= roiMask;
 			detectMovingObjects(foregroundMask);
 		}
 
@@ -131,7 +132,7 @@ void Tim::processFrames()
 
 			inputFrame.copyTo(displayFrame);
 			//classifier.DrawBoundingBoxes(displayFrame, (shadowMask == 2) & roiMask, roiMask);	
-			classifier.DrawBoundingBoxes(displayFrame, foregroundMask & roiMask, movingObjects);
+			classifier.DrawBoundingBoxes(displayFrame, foregroundMask, movingObjects);
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 			hconcat(displayFrame, foregroundMaskBGR, row1);
 
