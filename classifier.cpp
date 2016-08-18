@@ -11,46 +11,8 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 
 	for (auto& object: classifiedObjects)
 	{
-		// if object already contains some tracked points, try to predict their next position
 		if (object.prevFeatures.size() > 0)
-		{
-			std::vector<uint8_t> status;
-			std::vector<float>	err;
-			object.features.clear();
-
-			//std::vector<Point2f> prevFeatures_offset, features_offset;
-			//prevFeatures_offset.resize(object.prevFeatures.size());
-			//std::transform(object.prevFeatures.begin(), object.prevFeatures.end(), prevFeatures_offset.begin(),
-			//		[&](Point2f& p) { return p + (Point2f)object.selector.tl(); });
-
-			cv::calcOpticalFlowPyrLK(
-					prevFrame, grayFrame, // 2 consecutive images
-					object.prevFeatures, // input point positions in first im
-					object.features, // output point positions in the 2nd
-					status,    // tracking success
-					err      // tracking error
-					);
-
-			//object.features.resize(features_offset.size());
-			//std::transform(features_offset.begin(), features_offset.end(), object.features.begin(),
-			//		[&](Point2f& p) { return p - (Point2f)object.selector.tl(); });
-
-			std::cout << "ID: " << object.ID << ", status: ";
-			for (auto s: status)
-				std::cout << (unsigned)s << " ";
-			std::cout << ", err: ";
-			for (float e: err)
-				std::cout << e << ", ";
-			std::cout << std::endl;
-
-			// none of points matched, mark object for deletion
-			if (std::all_of(err.begin(), err.end(), [](float e) { return e < 2; }))
-				object.remove = true;
-
-			// remove points that could not be tracked
-			for (int i = 0; i < (int)err.size(); i++)
-				if (err[i] < 2) object.features.erase(object.features.begin() + i);
-		}
+			object.predictNextPosition(prevFrame, grayFrame);
 	}
 
 	classifiedObjects.erase(std::remove_if(classifiedObjects.begin(), classifiedObjects.end(),

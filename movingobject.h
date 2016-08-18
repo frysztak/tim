@@ -34,6 +34,7 @@ class MovingObject
 
 		void minimizeMask();
 		void updateTrackedFeatures(InputArray _grayFrame, uint32_t frameNumber);
+		void predictNextPosition(InputArray _prevGrayFrame, InputArray _grayFrame);
 };
 
 #endif

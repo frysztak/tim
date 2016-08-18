@@ -25,10 +25,10 @@ void MovingObject::minimizeMask()
 
 void MovingObject::updateTrackedFeatures(InputArray _grayFrame, uint32_t frameNumber)
 {
-	Mat grayFrame = _grayFrame.getMat();
+	Mat frame = _grayFrame.getMat();
 	
 	std::vector<Point2f> newFeatures;
-	goodFeaturesToTrack(grayFrame(selector), 
+	goodFeaturesToTrack(frame(selector), 
 						newFeatures,	
 						maxNumberOfFeatures,
 						featureQualityLevel,
@@ -43,4 +43,38 @@ void MovingObject::updateTrackedFeatures(InputArray _grayFrame, uint32_t frameNu
 		features = newFeatures;
 		featuresLastUpdated = frameNumber;
 	}
+}
+
+void MovingObject::predictNextPosition(InputArray _prevGrayFrame, InputArray _grayFrame)
+{
+	Mat prevFrame = _prevGrayFrame.getMat(), frame = _grayFrame.getMat();
+
+	std::vector<uint8_t> status;
+	std::vector<float> err;
+	features.clear();
+	
+	calcOpticalFlowPyrLK(prevFrame, 
+						 frame,
+						 prevFeatures,
+						 features,
+						 status,
+						 err);
+
+#ifdef DEBUG
+	std::cout << "ID: " << ID << ", status: ";
+	for (auto s: status)
+		std::cout << (unsigned)s << " ";
+	std::cout << ", err: ";
+	for (float e: err)
+		std::cout << e << ", ";
+	std::cout << std::endl;
+#endif
+
+	// none of points matched, mark object for deletion
+	if (std::all_of(err.begin(), err.end(), [](float e) { return e < 2; }))
+		remove = true;
+
+	// remove points that could not be tracked
+	for (int i = 0; i < (int)err.size(); i++)
+		if (err[i] < 2) features.erase(features.begin() + i);
 }
