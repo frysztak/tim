@@ -8,7 +8,7 @@ import numpy as np
 if __name__ == '__main__':
     socket = Socket(PAIR)
     socket.connect('ipc:///tmp/tim.ipc')
-    filePath = '/mnt/things/tim/json/act.json' #socket.recv()
+    filePath = '/mnt/things/tim/json/lausanne.json' #socket.recv()
     # open json file
     with open(filePath) as f:
         jsonData = json.load(f, object_pairs_hook=collections.OrderedDict)
@@ -22,27 +22,45 @@ if __name__ == '__main__':
     movedPointIdx = -1
     
     def generateMask():
-        global mask
+        global mask, points, movedPointIdx
         mask = np.zeros(frame.shape, np.uint8)
+        # sorting may change index of currently selected point
+        if movedPointIdx != -1:
+            savedPoint = points[movedPointIdx]
+
+        # use convex hull to sort points
+        sortedPoints = cv2.convexHull(np.asarray(points)).tolist()
+        # convex hull, besides sorting, for some reason returns points wrapped in a list twice.
+        # for example: when points = [[710, 359], [602, 361], [545, 719], [913, 720]],
+        #             sortedPoints = [[[913, 720]], [[545, 719]], [[602, 361]], [[710, 359]]]
+        # let's fix that.
+        points.clear()
+        for [p] in sortedPoints:
+            points.append([p[0], p[1]])
         poly = cv2.approxPolyDP(np.asarray(points), 1.0, True)
         cv2.fillConvexPoly(mask, poly.astype(np.int32), (255,255,255))
+
+        # update idx
+        for i, (x_,y_) in enumerate(points):
+            if movedPointIdx != -1 and savedPoint == [x_, y_]:
+                movedPointIdx = i
+                break
 
     def mouseCallback(event, x, y, flags, param):
         global movedPointIdx
 
-        if event == cv2.EVENT_LBUTTONDBLCLK and len(points) < 4:
+        if event == cv2.EVENT_LBUTTONDBLCLK:
             points.append([x,y])
-            if len(points) == 4:
-                generateMask()
-        elif event == cv2.EVENT_LBUTTONDOWN and len(points) == 4 and movedPointIdx == -1:
+            generateMask()
+        elif event == cv2.EVENT_LBUTTONDOWN and movedPointIdx == -1:
             for i, (x_,y_) in enumerate(points):
-                if abs(x-x_) <= 8 and abs(y-y_) <= 8:
+                if abs(x-x_) <= 12 and abs(y-y_) <= 12:
                     movedPointIdx = i
                     break
-        elif event == cv2.EVENT_MOUSEMOVE and len(points) == 4 and movedPointIdx != -1:
+        elif event == cv2.EVENT_MOUSEMOVE and movedPointIdx != -1:
             points[movedPointIdx] = [x, y]
             generateMask()
-        elif event == cv2.EVENT_LBUTTONUP and len(points) == 4 and movedPointIdx != -1:
+        elif event == cv2.EVENT_LBUTTONUP and movedPointIdx != -1:
             movedPointIdx = -1
 
     cv2.namedWindow('OpenCV')
