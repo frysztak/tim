@@ -3,7 +3,7 @@
 import sys, json, collections
 from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QWidget, QFormLayout, QSpinBox, \
         QDoubleSpinBox, QCheckBox, QLabel
-from nanomsg import Socket, PAIR
+from nanomsg import Socket, PAIR 
 
 socket = Socket(PAIR)
 
@@ -50,11 +50,24 @@ class Dialog(QDialog):
             json.dump(jsonData, f, indent=4)
 
 if __name__ == '__main__':
-    socket.connect('ipc:///tmp/tim.ipc')
-    filePath = socket.recv()
     # open json file
+    msgShown = False
+    while True:
+        try:
+            with open('/tmp/tim.path') as path:
+                filePath = path.readline()
+                if msgShown:
+                    print('oh, there it is')
+                break
+        except:
+            if not msgShown:
+                print('waiting for magical file to be materialised...')
+                msgShown = True
+
     with open(filePath) as f:
         jsonData = json.load(f, object_pairs_hook=collections.OrderedDict)
+
+    socket.bind('ipc:///tmp/tim.ipc')
 
     # Create main app
     myApp = QApplication(sys.argv)

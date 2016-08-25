@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 #include <chrono>
-#include <thread>
 #include <nanomsg/pair.h>
 
 using namespace json11;
@@ -14,6 +13,9 @@ Tim::~Tim()
 		delete background;
 	if (shadows)
 		delete shadows;
+
+	nn_close(socket);
+	std::remove("/tmp/tim.path");
 }
 
 bool Tim::open(const string& name, bool benchmark, bool record)
@@ -39,21 +41,14 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 		return false;
 	}
 
-	// nn_send blocks the thread, so start a separate one just for a while
-	// nanomsg sockets are thread-safe, thank god
-	std::thread sendJsonFilename_thread([&]()
-	{
-		socket = nn_socket(AF_SP, NN_PAIR);
-		if (socket >= 0)
-		{
-			if (nn_bind(socket, "ipc:///tmp/tim.ipc") >= 0)
-			{
-				const char* msg = fileName.c_str();
-				nn_send(socket, msg, strlen(msg), 0);
-			}
-		}
-	});
-	sendJsonFilename_thread.detach();
+	std::remove("/tmp/tim.path");
+	std::ofstream file("/tmp/tim.path");
+	file << fileName;
+	file.close();
+
+	socket = nn_socket(AF_SP, NN_PAIR);
+	if (socket >= 0)
+		nn_connect(socket, "ipc:///tmp/tim.ipc");
 	
 	auto width = videoCapture.get(CV_CAP_PROP_FRAME_WIDTH);
 	auto height = videoCapture.get(CV_CAP_PROP_FRAME_HEIGHT);
