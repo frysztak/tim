@@ -17,7 +17,8 @@ void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
 		foregroundMask.at<uint32_t>(idx/4) = fgMask;
 	}
 
-	medianBlur(foregroundMask, foregroundMask, 3);
+	if (params.medianFilterSize != 0)
+		medianBlur(foregroundMask, foregroundMask, params.medianFilterSize);
 }
 
 
@@ -131,7 +132,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 		denominator = _mm_mul_ps(denominator, stdDev);
 		eta = _mm_div_ps(eta, denominator);
 
-		__m128 rho = _mm_mul_ps(eta, _mm_set1_ps(learningRate));
+		__m128 rho = _mm_mul_ps(eta, _mm_set1_ps(params.learningRate));
 		__m128 oneMinusRho = _mm_sub_ps(_mm_set1_ps(1.0), rho);
 
 		__m128 newMeanB = _mm_mul_ps(oneMinusRho, meanB);
@@ -154,7 +155,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 		// weights are updated for Gaussians that didn't match, so let's invert mask first
 		__m128i junk; 
 		mask = _mm_xor_ps(mask, (__m128)_mm_cmpeq_epi8(junk,junk));	
-		__m128 newWeight = _mm_mul_ps(weight, _mm_set1_ps(1.0 - learningRate));
+		__m128 newWeight = _mm_mul_ps(weight, _mm_set1_ps(1.0 - params.learningRate));
 		weight = _mm_or_ps(_mm_and_ps(mask, newWeight), _mm_andnot_ps(mask, weight));
 		weightSum = _mm_add_ps(weightSum, weight);
 
@@ -206,11 +207,11 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 		_mm_store_ps(24 + 4*i + gaussian, value);
 		// variance
 		value = _mm_load_ps(36 + 4*i + gaussian);
-		value = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(initialVariance)), _mm_andnot_ps(isMin, value));
+		value = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(params.initialVariance)), _mm_andnot_ps(isMin, value));
 		_mm_store_ps(36 + 4*i + gaussian, value);
 
 		// modify weights only locally, we'll need them in just a bit
-		weights[i] = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(initialWeight)), _mm_andnot_ps(isMin, weights[i]));
+		weights[i] = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(params.initialWeight)), _mm_andnot_ps(isMin, weights[i]));
 	}
 
 	// now we should make sure that sum of weights equals to 1.
@@ -256,7 +257,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 		dR = _mm_mul_ps(_mm_set1_ps(0.5), _mm_mul_ps(dR, dR));
 		newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_div_ps(dR, variance));
 
-		__m128 newFgMask = _mm_cmpgt_ps(newEpsilon_bg, _mm_set1_ps(foregroundThreshold));
+		__m128 newFgMask = _mm_cmpgt_ps(newEpsilon_bg, _mm_set1_ps(params.foregroundThreshold));
 		fgMask = _mm_or_ps(_mm_and_ps(isMax, newFgMask), _mm_andnot_ps(isMax, fgMask));
 		
 		bgB = _mm_or_ps(_mm_and_ps(isMax, meanB), _mm_andnot_ps(isMax, bgB));

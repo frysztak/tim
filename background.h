@@ -2,10 +2,19 @@
 #define BACKGROUND_H
 
 #include <opencv2/opencv.hpp>
+#include "json11.hpp"
 
 #define GAUSSIANS_PER_PIXEL 3
 
 using namespace cv;
+
+struct BackgroundParameters
+{
+	float initialVariance, initialWeight, learningRate, foregroundThreshold;
+	int medianFilterSize;
+
+	void parse(const json11::Json& json);
+};
 
 class Background
 {
@@ -35,21 +44,16 @@ class Background
 	
 		typedef Gaussian GaussianMixture[GAUSSIANS_PER_PIXEL];
 	
-		Background();
+		Background(const Size& size, const json11::Json& json);
 		~Background();
-		void init(const Size& size);
 		void processFrame(InputArray _src, OutputArray _foregroundMask);
 		void processFrameSIMD(InputArray _src, OutputArray _foregroundMask);
 		const Mat& getCurrentBackground() const;
 		const Mat& getCurrentStdDev() const;
 
 	private:
-		const float initialVariance;
-		const float initialWeight;
-		const float learningRate;
-		const float foregroundThreshold;
-		
 		const float etaConst;
+		BackgroundParameters params;		
 
 		Mat currentBackground, currentStdDev;
 		GaussianMixture *gaussians = nullptr;

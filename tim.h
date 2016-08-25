@@ -14,6 +14,7 @@ using namespace std;
 class Tim
 {
 	public:
+		~Tim();
 		bool open(const string& name, bool benchmark, bool record);
 		void processFrames();
 
@@ -29,7 +30,7 @@ class Tim
 		uint32_t frameCount = 0;
 		Mat morphKernel;
 
-		Background background;
+		Background* background;
 		Classifier classifier;
 		Shadows* shadows;
 		VideoCapture videoCapture;

@@ -8,6 +8,12 @@
 
 using namespace json11;
 
+Tim::~Tim()
+{
+	delete background;
+	delete shadows;
+}
+
 bool Tim::open(const string& name, bool benchmark, bool record)
 {
 	string fileName = dataRootDir + "json/" + name + ".json";
@@ -22,8 +28,6 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	auto json = Json::parse(jsonString, err);
 
 	removeShadows = json["shadowDetection"].bool_value();
-	medianFilterSize = json["medianFilterSize"].int_value();
-	morphFilterSize = json["morphKernel"].int_value();
 	
 	auto videoFileName = dataRootDir + "videos/" + json["video"].string_value();
 	videoCapture.open(videoFileName);
@@ -64,7 +68,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	}
 
 	this->frameSize = Size(width * scaleFactor, height * scaleFactor);
-	background.init(this->frameSize);
+	background = new Background(frameSize, json);
 	shadows = new Shadows(json);
 
 	roiMask = Mat::zeros(frameSize, CV_8U);
@@ -109,9 +113,9 @@ void Tim::processFrames()
 			resize(inputFrame, inputFrame, Size(), scaleFactor, scaleFactor);
 			
 #ifdef SIMD
-			background.processFrameSIMD(inputFrame, foregroundMask);
+			background->processFrameSIMD(inputFrame, foregroundMask);
 #else
-			background.processFrame(inputFrame, foregroundMask);
+			background->processFrame(inputFrame, foregroundMask);
 #endif
 			foregroundMask &= roiMask;
 			detectMovingObjects(foregroundMask);
@@ -127,14 +131,9 @@ void Tim::processFrames()
 		shadowMask = Mat::zeros(frameSize, CV_8U);
 		if (removeShadows)
 		{
-			shadows->removeShadows(inputFrame, background.getCurrentBackground(), background.getCurrentStdDev(), 
+			shadows->removeShadows(inputFrame, background->getCurrentBackground(), background->getCurrentStdDev(), 
 					foregroundMask, objectLabels, movingObjects, shadowMask);
 		}
-
-		if (medianFilterSize != 0)
-			medianBlur(foregroundMask, foregroundMask, medianFilterSize);
-		//if (morphFilterSize != 0)
-		//	morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, morphKernel);
 
 		if (!benchmarkMode)
 		{
@@ -152,7 +151,7 @@ void Tim::processFrames()
 
 			cvtColor(shadowMask * (255/2), shadowMask, COLOR_GRAY2BGR);
 
-			hconcat(background.getCurrentBackground(), shadowMask, row2);
+			hconcat(background->getCurrentBackground(), shadowMask, row2);
 			vconcat(row1, row2, displayFrame);
 			imshow("OpenCV", displayFrame);
 			

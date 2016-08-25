@@ -1,17 +1,20 @@
 #include "background.h"
 #include <cstdlib>
 
-Background::Background() :
-	initialVariance(20),
-	initialWeight(0.05),
-	learningRate(0.05),
-	foregroundThreshold(14.5),
-	etaConst(pow(2 * M_PI, 3.0 / 2.0))
+void BackgroundParameters::parse(const json11::Json& json)
 {
+	initialVariance = json["initialVariance"].number_value();
+	initialWeight = json["initialWeight"].number_value();
+	learningRate = json["learningRate"].number_value();
+	foregroundThreshold = json["foregroundThreshold"].number_value();
+	medianFilterSize = json["medianFilterSize"].int_value();
 }
 
-void Background::init(const Size& size)
+Background::Background(const Size& size, const json11::Json& json) :
+	etaConst(pow(2 * M_PI, 3.0 / 2.0))
 {
+	params.parse(json);
+
 #ifdef SIMD
 	posix_memalign((void**)&gaussians, 16, size.area() * 5 * sizeof(float) * GAUSSIANS_PER_PIXEL);
 #else
@@ -20,6 +23,7 @@ void Background::init(const Size& size)
 
 	currentBackground = Mat::zeros(size, CV_8UC3);
 	currentStdDev = Mat::zeros(size, CV_32F);
+
 }
 
 Background::~Background()
@@ -65,7 +69,8 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 		}
 	}
 
-	medianBlur(foregroundMask, foregroundMask, 3);
+	if (params.medianFilterSize != 0)
+		medianBlur(foregroundMask, foregroundMask, params.medianFilterSize);
 }
 
 bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
@@ -91,7 +96,7 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 			float exponent = (-0.5 * distance) / gauss.variance;
 			float eta = exp(exponent) / (etaConst * stdDev * stdDev * stdDev);
 
-			float rho = learningRate * eta;
+			float rho = params.learningRate * eta;
 			float oneMinusRho = 1.0 - rho;
 
 			gauss.meanB = oneMinusRho*gauss.meanB + rho*bgr[0];
@@ -101,7 +106,7 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 		}
 		else
 		{
-			gauss.weight = (1.0 - learningRate)*gauss.weight;
+			gauss.weight = (1.0 - params.learningRate)*gauss.weight;
 		}
 
 		weightSum += gauss.weight;
@@ -118,8 +123,8 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 		gauss.meanB = bgr[0];
 		gauss.meanG = bgr[1];
 		gauss.meanR = bgr[2];	
-		gauss.weight = initialWeight;
-		gauss.variance = initialVariance;
+		gauss.weight = params.initialWeight;
+		gauss.variance = params.initialVariance;
 
 		// Gaussian has been changed, update sum of the weights.
 		weightSum = 0;
@@ -144,7 +149,7 @@ bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 	epsilon_bg += 0.5 * (bgr[1] - gauss.meanG) * (bgr[1] - gauss.meanG) / gauss.variance;
 	epsilon_bg += 0.5 * (bgr[2] - gauss.meanR) * (bgr[2] - gauss.meanR) / gauss.variance;
 
-	return epsilon_bg > foregroundThreshold;
+	return epsilon_bg > params.foregroundThreshold;
 }
 
 const Mat& Background::getCurrentBackground() const
