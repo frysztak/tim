@@ -35,6 +35,11 @@ Background::~Background()
 #endif
 }
 
+void Background::updateParameters(const json11::Json& json)
+{
+	params.parse(json);
+}
+
 void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 {
 	Mat src = _src.getMat(), foregroundMask = _foregroundMask.getMat();

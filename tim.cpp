@@ -179,6 +179,8 @@ void Tim::processFrames()
 				std::string jsonString((const char*)buf, nbytes), err;
 				auto json = Json::parse(jsonString, err);
 				shadows->updateParameters(json);
+				background->updateParameters(json);
+				this->removeShadows = json["shadowDetection"].bool_value();
 				nn_freemsg(buf);
 			}
 		}

@@ -46,6 +46,7 @@ class Background
 	
 		Background(const Size& size, const json11::Json& json);
 		~Background();
+		void updateParameters(const json11::Json& json);
 		void processFrame(InputArray _src, OutputArray _foregroundMask);
 		void processFrameSIMD(InputArray _src, OutputArray _foregroundMask);
 		const Mat& getCurrentBackground() const;
