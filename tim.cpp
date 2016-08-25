@@ -10,8 +10,10 @@ using namespace json11;
 
 Tim::~Tim()
 {
-	delete background;
-	delete shadows;
+	if (background)
+		delete background;
+	if (shadows)
+		delete shadows;
 }
 
 bool Tim::open(const string& name, bool benchmark, bool record)

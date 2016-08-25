@@ -30,9 +30,9 @@ class Tim
 		uint32_t frameCount = 0;
 		Mat morphKernel;
 
-		Background* background;
+		Background* background = nullptr;
+		Shadows* shadows = nullptr;
 		Classifier classifier;
-		Shadows* shadows;
 		VideoCapture videoCapture;
 		VideoWriter videoWriter;
 		Size frameSize;
