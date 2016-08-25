@@ -281,8 +281,8 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 	// convert to 16-bit ints
 	bgBi = _mm_packs_epi32(bgBi, bgGi); // B1 G1 R1 00 B2 G2 R2 00
 	bgRi = _mm_packs_epi32(bgRi, bgTi); // B3 G3 R3 00 B4 G4 R4 00
-	// convert to 8-bit ints
-	bgBi = _mm_packs_epi16(bgBi, bgRi); // B1 G1 R1 00 B2 G2 R2 00 B3 G3 R3 00 B4 G4 R4 00
+	// convert to 8-bit unsigned ints
+	bgBi = _mm_packus_epi16(bgBi, bgRi); // B1 G1 R1 00 B2 G2 R2 00 B3 G3 R3 00 B4 G4 R4 00
 
 	// extract isolated triplets 
 	__m128i b2g2r2 = _mm_and_si128(bgBi, _mm_setr_epi8(0,0,0,0,0xFF,0xFF,0xFF,0,0,0,0,0,0,0,0,0));
