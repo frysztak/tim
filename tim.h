@@ -22,13 +22,10 @@ class Tim
 		const string dataRootDir = "/mnt/things/tim/";
 		const double scaleFactor = .5;
 
-		uint medianFilterSize = 0;
-		uint morphFilterSize = 0;
 		bool paused = false;
 		bool benchmarkMode = false, record = false;
 		bool removeShadows = false;
 		uint32_t frameCount = 0;
-		Mat morphKernel;
 
 		Background* background = nullptr;
 		Shadows* shadows = nullptr;

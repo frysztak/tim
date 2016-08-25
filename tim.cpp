@@ -84,9 +84,6 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	approxPolyDP(roiPoints, roiPolygon, 1.0, true);
 	fillConvexPoly(roiMask, &roiPolygon[0], roiPolygon.size(), 255, 8, 0); 
 
-	if (morphFilterSize != 0)
-		morphKernel = getStructuringElement(MORPH_ELLIPSE, Size(morphFilterSize, morphFilterSize));
-
 	if (!benchmark)
 		namedWindow("OpenCV", WINDOW_AUTOSIZE);
 	else
