@@ -25,7 +25,7 @@ MovingObject::MovingObject(const Size& size) :
 MovingObject::MovingObject(const MovingObject& other) : 
    maxNumberOfFeatures(other.maxNumberOfFeatures), featureQualityLevel(other.featureQualityLevel),
    minDistanceBetweenFeatures(other.minDistanceBetweenFeatures),
-   segments(other.segments), segmentLabels(other.segmentLabels.clone()), mask(other.mask.clone()),
+   segments(other.segments), segmentLabels(other.segmentLabels), mask(other.mask.clone()),
    selector(other.selector),
    prevFeatures(other.prevFeatures), features(other.features), ID(other.ID), 
    featuresLastUpdated(other.featuresLastUpdated), remove(other.remove)
