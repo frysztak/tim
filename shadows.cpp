@@ -188,7 +188,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 				externalPointsCriterion(selector).setTo(1, segment.mask);
 #endif
 
-			if (luminance_ok && size_ok)// && extrinsic_ok)
+			if (luminance_ok && size_ok && extrinsic_ok)
 				shadowMask(selector).setTo(1, segment.mask);
 		}
 	}
