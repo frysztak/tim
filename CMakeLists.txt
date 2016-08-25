@@ -48,7 +48,6 @@ file(GLOB SOURCES *.cpp)
 
 ## C++ compiler options
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -std=c++14")
-set_source_files_properties(main.cpp PROPERTIES COMPILE_FLAGS -Wno-unused-parameter)
 
 #add_definitions(-DDEBUG)
 ## 1. Compile...
