@@ -54,7 +54,10 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	for (MovingObject& object: movingObjects)
 	{
 		if (params.edgeCorrection)
+		{
 			erode(object.mask, object.mask, getStructuringElement(MORPH_RECT, Size(5,5)));
+			object.minimizeMask();
+		}
 
 		float grThr = params.gradientThreshold;
 		if (params.autoGradientThreshold)
@@ -72,7 +75,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 			grThr *= meanSum[0] * stdDevSum[0] / objSize; 
 			grThr *= params.gradientThresholdMultiplier;
 #if DEBUG
-			//std::cout << "threshold: " << grThr << ", obj size: " << objSize << std::endl;
+			std::cout << "ID: " << object.ID << ", threshold: " << grThr << ", obj size: " << objSize << std::endl;
 #endif
 		}
 
@@ -185,7 +188,7 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 				externalPointsCriterion(selector).setTo(1, segment.mask);
 #endif
 
-			if (luminance_ok && size_ok && extrinsic_ok)
+			if (luminance_ok && size_ok)// && extrinsic_ok)
 				shadowMask(selector).setTo(1, segment.mask);
 		}
 	}
@@ -195,8 +198,8 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 	imshow("sizeCriterion", 255*sizeCriterion);
 	imshow("externalPointsCriterion", 255*externalPointsCriterion);
 	
-	//if(globalSegmentCounter != 0)
-	//	showSegmentation(globalSegmentCounter, globalSegmentMap);
+	if(globalSegmentCounter != 0)
+		showSegmentation(globalSegmentCounter, globalSegmentMap);
 
 	imshow("shadowMask w/ blanks", (255/2)*shadowMask);
 #endif

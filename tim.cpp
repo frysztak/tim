@@ -117,8 +117,15 @@ void Tim::processFrames()
 			detectMovingObjects(foregroundMask);
 		}
 
+		if (paused)
+		{
+			movingObjects.clear();
+			movingObjects.resize(movingObjectsCopy.size());
+			std::copy(movingObjectsCopy.begin(), movingObjectsCopy.end(), movingObjects.begin());
+		}
+
 		shadowMask = Mat::zeros(frameSize, CV_8U);
-		if (!paused && removeShadows)
+		if (removeShadows)
 		{
 			shadows->removeShadows(inputFrame, background.getCurrentBackground(), background.getCurrentStdDev(), 
 					foregroundMask, objectLabels, movingObjects, shadowMask);
@@ -129,13 +136,16 @@ void Tim::processFrames()
 		//if (morphFilterSize != 0)
 		//	morphologyEx(foregroundMask, foregroundMask, MORPH_OPEN, morphKernel);
 
-		if (!benchmarkMode && !paused)
+		if (!benchmarkMode)
 		{
 			Mat foregroundMaskBGR, row1, row2;
 
 			inputFrame.copyTo(displayFrame);
-			Mat mask = removeShadows ? (shadowMask == 2) : foregroundMask;
-			classifier.DrawBoundingBoxes(displayFrame, mask, movingObjects);
+			if (!paused)
+			{
+				Mat mask = removeShadows ? (shadowMask == 2) : foregroundMask;
+				classifier.DrawBoundingBoxes(displayFrame, mask, movingObjects);
+			}
 
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 			hconcat(displayFrame, foregroundMaskBGR, row1);
@@ -210,4 +220,7 @@ void Tim::detectMovingObjects(InputArray _fgMask)
 
 	for (auto& obj: movingObjects)
 		obj.minimizeMask();
+
+	movingObjectsCopy.resize(movingObjects.size());
+	std::copy(movingObjects.begin(), movingObjects.end(), movingObjectsCopy.begin());
 }

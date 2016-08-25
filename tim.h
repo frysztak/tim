@@ -37,7 +37,8 @@ class Tim
 		Size frameSize;
 		Mat roiMask, objectLabels;
 
-		std::vector<MovingObject> movingObjects;
+		// a copy is needed when playback is paused, but we want to update shadow detection params
+		std::vector<MovingObject> movingObjects, movingObjectsCopy;
 
 		int socket;
 

@@ -8,6 +8,7 @@ using namespace cv;
 struct Segment
 {
 	Segment(Mat& mask, int area);
+	Segment(const Segment& other);
 
 	Mat mask;
 	int area;
@@ -21,7 +22,10 @@ class MovingObject
 		int minDistanceBetweenFeatures;
 
 	public:
+		MovingObject();
 		MovingObject(const Size& size);
+		MovingObject(const MovingObject& other);
+		MovingObject& operator=(const MovingObject& other);
 
 		std::vector<Segment> segments;
 		Mat segmentLabels, mask, miniMask;

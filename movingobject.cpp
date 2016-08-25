@@ -5,12 +5,50 @@ Segment::Segment(Mat& mask, int area) :
 { 
 }
 
+Segment::Segment(const Segment& other) : 
+	mask(other.mask.clone()), area(other.area)
+{
+}
+
+MovingObject::MovingObject()
+{
+}
+
 MovingObject::MovingObject(const Size& size) :
 	maxNumberOfFeatures(10),
 	featureQualityLevel(0.01),
 	minDistanceBetweenFeatures(8)
 {
 	mask = Mat::zeros(size, CV_8U);
+}
+
+MovingObject::MovingObject(const MovingObject& other) : 
+   maxNumberOfFeatures(other.maxNumberOfFeatures), featureQualityLevel(other.featureQualityLevel),
+   minDistanceBetweenFeatures(other.minDistanceBetweenFeatures),
+   segments(other.segments), segmentLabels(other.segmentLabels.clone()), mask(other.mask.clone()),
+   selector(other.selector),
+   prevFeatures(other.prevFeatures), features(other.features), ID(other.ID), 
+   featuresLastUpdated(other.featuresLastUpdated), remove(other.remove)
+{
+	miniMask = mask(selector);
+}
+
+MovingObject& MovingObject::operator=(const MovingObject& other)
+{
+	this->maxNumberOfFeatures = other.maxNumberOfFeatures;
+	this->featureQualityLevel = other.featureQualityLevel;
+	this->minDistanceBetweenFeatures = other.minDistanceBetweenFeatures;
+	this->segments = std::vector<Segment>(other.segments);
+	this->segmentLabels = other.segmentLabels.clone();
+	this->mask = other.mask.clone();
+	this->selector = other.selector;
+	this->prevFeatures = std::vector<Point2f>(prevFeatures);
+	this->features = std::vector<Point2f>(features);
+	this->featuresLastUpdated = other.featuresLastUpdated;
+	this->remove = other.remove;
+	this->miniMask = mask(selector);
+
+	return *this;
 }
 
 void MovingObject::minimizeMask()
