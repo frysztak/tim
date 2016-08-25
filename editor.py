@@ -11,9 +11,10 @@ class Dialog(QDialog):
         super(Dialog, self).__init__()
         self.jsonPath = jsonPath
         self.jsonData = jsonData
+        blacklist = ["initialVariance", "initialWeight", "learningRate", "medianFilterSize", "roi"]
         
         mainLayout = QVBoxLayout()
-        for key, value in [x for x in jsonData.items() if not isinstance(x[1], str)]:
+        for key, value in [x for x in jsonData.items() if not isinstance(x[1], str) and x[0] not in blacklist]:
             mainLayout.addWidget(self.createWidget(key, value))
         self.setLayout(mainLayout)
    
