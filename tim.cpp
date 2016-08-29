@@ -117,9 +117,8 @@ void Tim::processFrames()
 
 		if (paused)
 		{
-			movingObjects.clear();
-			movingObjects.resize(movingObjectsCopy.size());
-			std::copy(movingObjectsCopy.begin(), movingObjectsCopy.end(), movingObjects.begin());
+			movingObjects = movingObjectsCopy;
+			objectLabels = objectLabelsCopy.clone();
 		}
 
 		shadowMask = Mat::zeros(frameSize, CV_8U);
@@ -216,6 +215,6 @@ void Tim::detectMovingObjects(InputArray _fgMask)
 	for (auto& obj: movingObjects)
 		obj.minimizeMask();
 
-	movingObjectsCopy.resize(movingObjects.size());
-	std::copy(movingObjects.begin(), movingObjects.end(), movingObjectsCopy.begin());
+	movingObjectsCopy = movingObjects;
+	objectLabelsCopy = objectLabels.clone();
 }
