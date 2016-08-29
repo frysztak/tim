@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 import sys, json, collections
-from PyQt5.QtWidgets import QApplication, QDialog, QVBoxLayout, QWidget, QFormLayout, QSpinBox, \
-        QDoubleSpinBox, QCheckBox, QLabel
+from PyQt5.QtWidgets import (QApplication, QDialog, QVBoxLayout, QWidget, QFormLayout, 
+                             QSpinBox, QDoubleSpinBox, QCheckBox, QLabel)
 from nanomsg import Socket, PAIR 
 
 socket = Socket(PAIR)
