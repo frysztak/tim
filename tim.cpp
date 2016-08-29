@@ -32,6 +32,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	auto json = Json::parse(jsonString, err);
 
 	removeShadows = json["shadowDetection"].bool_value();
+	uint32_t startTime = json["startTime"].int_value();
 	
 	auto videoFileName = dataRootDir + "videos/" + json["video"].string_value();
 	videoCapture.open(videoFileName);
@@ -87,7 +88,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	this->benchmarkMode = benchmark;
 	this->record = record;
 
-	videoCapture.set(CV_CAP_PROP_POS_MSEC, 36*1000);
+	videoCapture.set(CV_CAP_PROP_POS_MSEC, startTime);
 
 	return true;
 }
