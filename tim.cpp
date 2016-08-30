@@ -9,10 +9,9 @@ using namespace json11;
 
 Tim::~Tim()
 {
-	if (background)
-		delete background;
-	if (shadows)
-		delete shadows;
+	if (background) delete background;
+	if (shadows) delete shadows;
+	if (classifier) delete classifier;
 
 	nn_close(socket);
 	std::remove("/tmp/tim.path");
@@ -68,6 +67,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	this->frameSize = Size(width * scaleFactor, height * scaleFactor);
 	background = new Background(frameSize, json);
 	shadows = new Shadows(json);
+	classifier = new Classifier();
 
 	// prepare ROI mask
 	roiMask = Mat::zeros(frameSize, CV_8U);
@@ -151,7 +151,8 @@ void Tim::processFrames()
 			if (!paused)
 			{
 				Mat mask = removeShadows ? (shadowMask == 2) : foregroundMask;
-				classifier.DrawBoundingBoxes(displayFrame, mask, movingObjects);
+				classifier->trackObjects(displayFrame, mask, movingObjects);
+				classifier->drawBoundingBoxes(displayFrame);
 			}
 
 			// draw collision lines

@@ -30,7 +30,7 @@ class Tim
 
 		Background* background = nullptr;
 		Shadows* shadows = nullptr;
-		Classifier classifier;
+		Classifier* classifier = nullptr;
 		VideoCapture videoCapture;
 		VideoWriter videoWriter;
 		Size frameSize;

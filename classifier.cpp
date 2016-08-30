@@ -1,7 +1,6 @@
 #include "classifier.h"
-#include <vector>
 
-void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, std::vector<MovingObject>& movingObjects)
+void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<MovingObject>& movingObjects)
 {
 	Mat frame = _frame.getMat(), mask = _mask.getMat();
 	Mat grayFrame;
@@ -98,7 +97,15 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 
 		std::swap(obj.prevFeatures, obj.features);
 	}
+	
+	prevFrame = grayFrame.clone();
+	frameCounter++;
+}
 
+void Classifier::drawBoundingBoxes(InputOutputArray _frame)
+{
+	Mat frame = _frame.getMat();
+	
 	for (auto& obj: classifiedObjects)
 	{
 		rectangle(frame, obj.selector, Scalar(255, 0, 0), 2, 1);
@@ -116,13 +123,9 @@ void Classifier::DrawBoundingBoxes(InputOutputArray _frame, InputArray _mask, st
 			circle(frame, pt, 3, Scalar(255, 0, 255));
 	}
 
-	prevFrame = grayFrame.clone();
-	frameCounter++;
-
 	//	RotatedRect rect = minAreaRect(contour);
 	//	Point2f vtx[4];
 	//	rect.points(vtx);
 	//	for(int i = 0; i < 4; i++)
 	//		line(frame, vtx[i], vtx[(i+1)%4], Scalar(255, 0, 255), 2, LINE_AA);
-
 }
