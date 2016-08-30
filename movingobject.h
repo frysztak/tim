@@ -22,7 +22,7 @@ class MovingObject
 		int minDistanceBetweenFeatures;
 
 	public:
-		MovingObject();
+		MovingObject() = default;
 		MovingObject(const Size& size);
 		MovingObject(const MovingObject& other);
 		MovingObject& operator=(const MovingObject& other);

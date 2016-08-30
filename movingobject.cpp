@@ -10,10 +10,6 @@ Segment::Segment(const Segment& other) :
 {
 }
 
-MovingObject::MovingObject()
-{
-}
-
 MovingObject::MovingObject(const Size& size) :
 	maxNumberOfFeatures(10),
 	featureQualityLevel(0.01),
