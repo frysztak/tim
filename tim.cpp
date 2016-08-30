@@ -125,7 +125,6 @@ void Tim::processFrames()
 #endif
 			foregroundMask &= roiMask;
 			detectMovingObjects(foregroundMask);
-			classifier->checkCollisions(movingObjects);
 		}
 
 		if (paused)
@@ -150,6 +149,7 @@ void Tim::processFrames()
 			{
 				Mat mask = removeShadows ? (shadowMask == 2) : foregroundMask;
 				classifier->trackObjects(displayFrame, mask, movingObjects);
+				classifier->checkCollisions();
 				classifier->drawBoundingBoxes(displayFrame);
 			}
 			classifier->drawCollisionLines(displayFrame);

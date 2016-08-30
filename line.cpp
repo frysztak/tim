@@ -1,6 +1,6 @@
 #include "line.h"
 
-Line::Line(const Point& _pt1, const Point& _pt2) : pt1(_pt1), pt2(_pt2)
+Line::Line(int id, const Point& _pt1, const Point& _pt2) : pt1(_pt1), pt2(_pt2), ID(id)
 {
 }
 
@@ -81,15 +81,6 @@ bool Line::intersect(const Rect& rect) const
 	};
 
 	return std::any_of(intersections.begin(), intersections.end(), [](bool i){ return i == true; });
-}
-
-void Line::intersect(const std::vector<MovingObject>& objects)
-{
-	std::vector<bool> intersections;
-	for (auto& obj: objects)
-		intersections.push_back(intersect(obj.selector));
-
-	isBeingCrossed = std::any_of(intersections.begin(), intersections.end(), [](bool i){ return i == true; });
 }
 
 void Line::draw(InputOutputArray _frame)

@@ -2,8 +2,8 @@
 
 Classifier::Classifier(const std::vector<Point>& points)
 {
-	collisionLines[0] = Line(points[0],  points[1]);
-	collisionLines[1] = Line(points[2],  points[3]);
+	collisionLines[0] = Line(0, points[0],  points[1]);
+	collisionLines[1] = Line(1, points[2],  points[3]);
 }
 
 void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<MovingObject>& movingObjects)
@@ -52,6 +52,7 @@ void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<M
 				objectMatched = true;
 				classifiedObj.mask = objMask;
 				classifiedObj.minimizeMask();
+				classifiedObj.collisions.insert(object.collisions.begin(), object.collisions.end());
 				objectsToMerge.push_back(&classifiedObj);
 #ifdef DEBUG
 				std::cout << "ID " << classifiedObj.ID << " matched" << std::endl;
@@ -68,6 +69,7 @@ void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<M
 
 			auto obj = MovingObject(frame.size());
 			obj.ID = objectsToMerge.front()->ID;
+			obj.collisions = objectsToMerge.front()->collisions;
 
 			for (MovingObject* o: objectsToMerge)
 			{
@@ -108,10 +110,22 @@ void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<M
 	frameCounter++;
 }
 
-void Classifier::checkCollisions(std::vector<MovingObject>& objects)
+void Classifier::checkCollisions()
 {
-	collisionLines[0].intersect(objects);
-	collisionLines[1].intersect(objects);
+	for (auto& line: collisionLines)
+	{
+		bool anyOfObjectsCrossesTheLine = false;
+		for (auto& obj: classifiedObjects)
+		{
+			if (line.intersect(obj.selector))
+			{
+				obj.collisions[line.ID] = frameCounter;
+				anyOfObjectsCrossesTheLine = true;
+			}
+		}
+
+		line.isBeingCrossed = anyOfObjectsCrossesTheLine;
+	}
 }
 
 void Classifier::drawBoundingBoxes(InputOutputArray _frame)
@@ -146,6 +160,6 @@ void Classifier::drawCollisionLines(InputOutputArray _frame)
 {
 	Mat frame = _frame.getMat();
 	
-	collisionLines[0].draw(frame);
-	collisionLines[1].draw(frame);
+	for (auto& line: collisionLines)
+		line.draw(frame);
 }

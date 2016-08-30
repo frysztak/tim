@@ -2,6 +2,7 @@
 #define MOVINGOBJECT_H
 
 #include <opencv2/opencv.hpp>
+#include <map>
 
 using namespace cv;
 
@@ -35,6 +36,8 @@ class MovingObject
 		std::vector<Point2f> prevFeatures, features;
 		uint32_t ID = 0, featuresLastUpdated = 0;
 		bool remove = false;
+
+		std::map<int, uint32_t> collisions;
 
 		void minimizeMask();
 		void updateTrackedFeatures(InputArray _grayFrame, uint32_t frameNumber);

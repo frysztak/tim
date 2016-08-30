@@ -13,7 +13,7 @@ class Classifier
 		Classifier(const std::vector<Point>& collisionLines);
 
 		void trackObjects(InputArray _frame, InputArray _fgMask, std::vector<MovingObject>& objects);
-		void checkCollisions(std::vector<MovingObject>& objects);
+		void checkCollisions();
 
 		void drawBoundingBoxes(InputOutputArray _frame);
 		void drawCollisionLines(InputOutputArray _frame);
