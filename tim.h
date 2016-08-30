@@ -4,6 +4,7 @@
 #include "background.h"
 #include "classifier.h"
 #include "shadows.h"
+#include "line.h"
 #include <nanomsg/nn.h>
 #include <string>
 
@@ -34,6 +35,7 @@ class Tim
 		VideoWriter videoWriter;
 		Size frameSize;
 		Mat roiMask, objectLabels, objectLabelsCopy;
+		Line collisionLines[2];
 
 		// a copy is needed when playback is paused, but we want to update shadow detection params
 		std::vector<MovingObject> movingObjects, movingObjectsCopy;

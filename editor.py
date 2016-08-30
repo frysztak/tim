@@ -12,7 +12,7 @@ class Dialog(QDialog):
         super(Dialog, self).__init__()
         self.jsonPath = jsonPath
         self.jsonData = jsonData
-        blacklist = ["initialVariance", "initialWeight", "learningRate", "medianFilterSize", "roi"]
+        blacklist = ["initialVariance", "initialWeight", "learningRate", "medianFilterSize", "roi", "lines"]
         
         mainLayout = QVBoxLayout()
         for key, value in [x for x in jsonData.items() if not isinstance(x[1], str) and x[0] not in blacklist]:

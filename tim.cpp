@@ -69,6 +69,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	background = new Background(frameSize, json);
 	shadows = new Shadows(json);
 
+	// prepare ROI mask
 	roiMask = Mat::zeros(frameSize, CV_8U);
 	std::vector<Point> roiPoints, roiPolygon;
 	for (const Json& list: json["roi"].array_items())
@@ -79,6 +80,17 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	}
 	approxPolyDP(roiPoints, roiPolygon, 1.0, true);
 	fillConvexPoly(roiMask, &roiPolygon[0], roiPolygon.size(), 255, 8, 0); 
+
+	// prepare collision lines
+	std::vector<Point> linesPoints;
+	for (const Json& list: json["lines"].array_items())
+	{
+		const Json& innerList = list.array_items();
+		linesPoints.emplace_back(innerList[0].number_value()*frameSize.width, 
+							     innerList[1].number_value()*frameSize.height);
+	}
+	collisionLines[0] = Line(linesPoints[0], linesPoints[1]);
+	collisionLines[1] = Line(linesPoints[2], linesPoints[3]);
 
 	if (!benchmark)
 		namedWindow("OpenCV", WINDOW_AUTOSIZE);
@@ -114,6 +126,8 @@ void Tim::processFrames()
 #endif
 			foregroundMask &= roiMask;
 			detectMovingObjects(foregroundMask);
+			collisionLines[0].intersect(movingObjects);
+			collisionLines[1].intersect(movingObjects);
 		}
 
 		if (paused)
@@ -140,6 +154,10 @@ void Tim::processFrames()
 				classifier.DrawBoundingBoxes(displayFrame, mask, movingObjects);
 			}
 
+			// draw collision lines
+			collisionLines[0].draw(displayFrame);
+			collisionLines[1].draw(displayFrame);
+				
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 			hconcat(displayFrame, foregroundMaskBGR, row1);
 
