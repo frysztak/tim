@@ -18,7 +18,7 @@ class Line
 		Line() = default;
 		Line(const Point& _pt1, const Point& _pt2);
 
-		bool intersect(const std::vector<MovingObject>& objects);
+		void intersect(const std::vector<MovingObject>& objects);
 		void draw(InputOutputArray _frame);
 };
 

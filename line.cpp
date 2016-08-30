@@ -83,14 +83,13 @@ bool Line::intersect(const Rect& rect) const
 	return std::any_of(intersections.begin(), intersections.end(), [](bool i){ return i == true; });
 }
 
-bool Line::intersect(const std::vector<MovingObject>& objects)
+void Line::intersect(const std::vector<MovingObject>& objects)
 {
 	std::vector<bool> intersections;
 	for (auto& obj: objects)
 		intersections.push_back(intersect(obj.selector));
 
 	isBeingCrossed = std::any_of(intersections.begin(), intersections.end(), [](bool i){ return i == true; });
-	return isBeingCrossed;
 }
 
 void Line::draw(InputOutputArray _frame)
