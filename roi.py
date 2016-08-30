@@ -119,11 +119,12 @@ if __name__ == '__main__':
             cv2.circle(disp, (x,y), 8, (255,0,0), -1)
         disp = cv2.add(disp, mask)
 
-        for line in linesPoints:
+        for i, line in enumerate(linesPoints):
             for (x,y) in line:
                 cv2.circle(disp, (x,y), 8, (0,255,0), -1)
             if len(line) == 2:
                 cv2.line(disp, tuple(line[0]), tuple(line[1]), (0,255,0), 2)
+                cv2.putText(disp, 'line ' + str(i), tuple(line[0]), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
 
         cv2.imshow('OpenCV', disp)
 
