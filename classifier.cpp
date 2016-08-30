@@ -1,5 +1,11 @@
 #include "classifier.h"
 
+Classifier::Classifier(const std::vector<Point>& points)
+{
+	collisionLines[0] = Line(points[0],  points[1]);
+	collisionLines[1] = Line(points[2],  points[3]);
+}
+
 void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<MovingObject>& movingObjects)
 {
 	Mat frame = _frame.getMat(), mask = _mask.getMat();
@@ -102,6 +108,12 @@ void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<M
 	frameCounter++;
 }
 
+void Classifier::checkCollisions(std::vector<MovingObject>& objects)
+{
+	collisionLines[0].intersect(objects);
+	collisionLines[1].intersect(objects);
+}
+
 void Classifier::drawBoundingBoxes(InputOutputArray _frame)
 {
 	Mat frame = _frame.getMat();
@@ -128,4 +140,12 @@ void Classifier::drawBoundingBoxes(InputOutputArray _frame)
 	//	rect.points(vtx);
 	//	for(int i = 0; i < 4; i++)
 	//		line(frame, vtx[i], vtx[(i+1)%4], Scalar(255, 0, 255), 2, LINE_AA);
+}
+
+void Classifier::drawCollisionLines(InputOutputArray _frame)
+{
+	Mat frame = _frame.getMat();
+	
+	collisionLines[0].draw(frame);
+	collisionLines[1].draw(frame);
 }

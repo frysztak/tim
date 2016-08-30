@@ -65,9 +65,6 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 	}
 
 	this->frameSize = Size(width * scaleFactor, height * scaleFactor);
-	background = new Background(frameSize, json);
-	shadows = new Shadows(json);
-	classifier = new Classifier();
 
 	// prepare ROI mask
 	roiMask = Mat::zeros(frameSize, CV_8U);
@@ -89,8 +86,10 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 		linesPoints.emplace_back(innerList[0].number_value()*frameSize.width, 
 							     innerList[1].number_value()*frameSize.height);
 	}
-	collisionLines[0] = Line(linesPoints[0], linesPoints[1]);
-	collisionLines[1] = Line(linesPoints[2], linesPoints[3]);
+
+	background = new Background(frameSize, json);
+	shadows = new Shadows(json);
+	classifier = new Classifier(linesPoints);
 
 	if (!benchmark)
 		namedWindow("OpenCV", WINDOW_AUTOSIZE);
@@ -126,8 +125,7 @@ void Tim::processFrames()
 #endif
 			foregroundMask &= roiMask;
 			detectMovingObjects(foregroundMask);
-			collisionLines[0].intersect(movingObjects);
-			collisionLines[1].intersect(movingObjects);
+			classifier->checkCollisions(movingObjects);
 		}
 
 		if (paused)
@@ -154,11 +152,8 @@ void Tim::processFrames()
 				classifier->trackObjects(displayFrame, mask, movingObjects);
 				classifier->drawBoundingBoxes(displayFrame);
 			}
+			classifier->drawCollisionLines(displayFrame);
 
-			// draw collision lines
-			collisionLines[0].draw(displayFrame);
-			collisionLines[1].draw(displayFrame);
-				
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 			hconcat(displayFrame, foregroundMaskBGR, row1);
 
