@@ -52,7 +52,7 @@ if __name__ == '__main__':
         for [p] in sortedPoints:
             polygonPoints.append([p[0], p[1]])
         poly = cv2.approxPolyDP(np.asarray(polygonPoints), 1.0, True)
-        cv2.fillConvexPoly(mask, poly.astype(np.int32), (255,255,255))
+        cv2.fillConvexPoly(mask, poly.astype(np.int32), (255,255,255), cv2.LINE_AA)
 
         # update idx
         for i, (x_,y_) in enumerate(polygonPoints):
@@ -116,15 +116,16 @@ if __name__ == '__main__':
     while True:
         disp = frame.copy()
         for (x,y) in polygonPoints:
-            cv2.circle(disp, (x,y), 8, (255,0,0), -1)
+            cv2.circle(disp, (x,y), 8, (255,0,0), -1, cv2.LINE_AA)
         disp = cv2.add(disp, mask)
 
         for i, line in enumerate(linesPoints):
             for (x,y) in line:
-                cv2.circle(disp, (x,y), 8, (0,255,0), -1)
+                cv2.circle(disp, (x,y), 8, (0,255,0), -1, cv2.LINE_AA)
             if len(line) == 2:
-                cv2.line(disp, tuple(line[0]), tuple(line[1]), (0,255,0), 2)
-                cv2.putText(disp, 'line ' + str(i), tuple(line[0]), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255))
+                cv2.line(disp, tuple(line[0]), tuple(line[1]), (0,255,0), 2, cv2.LINE_AA)
+                cv2.putText(disp, 'line ' + str(i), tuple(line[0]), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0,0,255), 
+                            1, cv2.LINE_AA)
 
         cv2.imshow('OpenCV', disp)
 
