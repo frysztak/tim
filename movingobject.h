@@ -36,6 +36,7 @@ class MovingObject
 		std::vector<Point2f> prevFeatures, features;
 		uint32_t ID = 0, featuresLastUpdated = 0;
 		bool remove = false;
+		bool alreadyCounted = false;
 
 		std::map<int, uint32_t> collisions;
 

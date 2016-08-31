@@ -1,9 +1,12 @@
 #include "classifier.h"
 
-Classifier::Classifier(const std::vector<Point>& points)
+Classifier::Classifier(const std::vector<Point>& points, const std::string& directionStr)
 {
 	collisionLines[0] = Line(0, points[0],  points[1]);
 	collisionLines[1] = Line(1, points[2],  points[3]);
+	
+	naturalDirection = Direction(directionStr);
+	oppositeDirection = !naturalDirection;
 }
 
 void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<MovingObject>& movingObjects)
@@ -69,12 +72,14 @@ void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<M
 
 			auto obj = MovingObject(frame.size());
 			obj.ID = objectsToMerge.front()->ID;
-			obj.collisions = objectsToMerge.front()->collisions;
+			obj.alreadyCounted = std::any_of(objectsToMerge.begin(), objectsToMerge.end(),
+					[](const MovingObject* obj) { return obj->alreadyCounted; });
 
 			for (MovingObject* o: objectsToMerge)
 			{
 				o->remove = true;
 				obj.mask += o->mask;
+				obj.collisions.insert(o->collisions.begin(), o->collisions.end());
 			}
 			
 			obj.minimizeMask();
@@ -128,6 +133,24 @@ void Classifier::checkCollisions()
 	}
 }
 
+void Classifier::updateCounters()
+{
+	for (auto& obj: classifiedObjects)
+	{
+		if (obj.collisions.size() == 2 && !obj.alreadyCounted)
+		{
+			uint32_t line0Time = obj.collisions[0];
+			uint32_t line1Time = obj.collisions[1];
+			if (line0Time < line1Time)
+				naturalDirection++;
+			else
+				oppositeDirection++;
+
+			obj.alreadyCounted = true;
+		}
+	}
+}
+
 void Classifier::drawBoundingBoxes(InputOutputArray _frame)
 {
 	Mat frame = _frame.getMat();
@@ -162,4 +185,26 @@ void Classifier::drawCollisionLines(InputOutputArray _frame)
 	
 	for (auto& line: collisionLines)
 		line.draw(frame);
+}
+
+void Classifier::drawCounters(InputOutputArray _frame)
+{
+	Mat frame = _frame.getMat();
+	
+	int fontFace = FONT_HERSHEY_SIMPLEX;
+	double fontScale = 1.0;
+	int thickness = 1;
+
+	int baseline = 0;
+	std::string text = naturalDirection.prettyString();
+	Size textSize = getTextSize(text, fontFace,
+			fontScale, thickness, &baseline);
+
+	Point offset = Point(10, frame.size().height - 10);
+	putText(frame, text, offset, fontFace, fontScale, Scalar::all(255), 
+			thickness, LINE_AA, false);
+
+	offset.y -= textSize.height + 5;
+	putText(frame, oppositeDirection.prettyString(), offset, fontFace, fontScale, Scalar::all(255), 
+			thickness, LINE_AA, false);
 }

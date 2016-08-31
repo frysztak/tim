@@ -24,7 +24,8 @@ MovingObject::MovingObject(const MovingObject& other) :
    segments(other.segments), segmentLabels(other.segmentLabels), mask(other.mask.clone()),
    selector(other.selector),
    prevFeatures(other.prevFeatures), features(other.features), ID(other.ID), 
-   featuresLastUpdated(other.featuresLastUpdated), remove(other.remove), collisions(other.collisions)
+   featuresLastUpdated(other.featuresLastUpdated), remove(other.remove), alreadyCounted(other.alreadyCounted),
+   collisions(other.collisions)
 {
 	miniMask = mask(selector);
 }
@@ -42,6 +43,7 @@ MovingObject& MovingObject::operator=(const MovingObject& other)
 	this->features = std::vector<Point2f>(features);
 	this->featuresLastUpdated = other.featuresLastUpdated;
 	this->remove = other.remove;
+	this->alreadyCounted = other.alreadyCounted;
 	this->collisions = other.collisions;
 	this->miniMask = mask(selector);
 

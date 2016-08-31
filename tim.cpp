@@ -32,6 +32,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	removeShadows = json["shadowDetection"].bool_value();
 	uint32_t startTime = json["startTime"].int_value();
+	std::string naturalDirection = json["naturalDirection"].string_value();
 	
 	auto videoFileName = dataRootDir + "videos/" + json["video"].string_value();
 	videoCapture.open(videoFileName);
@@ -89,7 +90,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	background = new Background(frameSize, json);
 	shadows = new Shadows(json);
-	classifier = new Classifier(linesPoints);
+	classifier = new Classifier(linesPoints, naturalDirection);
 
 	if (!benchmark)
 		namedWindow("OpenCV", WINDOW_AUTOSIZE);
@@ -150,10 +151,12 @@ void Tim::processFrames()
 				Mat mask = removeShadows ? (shadowMask == 2) : foregroundMask;
 				classifier->trackObjects(displayFrame, mask, movingObjects);
 				classifier->checkCollisions();
+				classifier->updateCounters();
 			}
 
 			classifier->drawBoundingBoxes(displayFrame);
 			classifier->drawCollisionLines(displayFrame);
+			classifier->drawCounters(displayFrame);
 
 			cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
 			hconcat(displayFrame, foregroundMaskBGR, row1);
