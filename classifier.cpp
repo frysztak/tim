@@ -41,16 +41,10 @@ void Classifier::trackObjects(InputArray _frame, InputArray _mask, std::vector<M
 
 		for (auto& classifiedObj: classifiedObjects)
 		{
-			int pointsMatched = 0;
-			for (auto& pt: classifiedObj.features)
-				pointsMatched += objMask.at<uint8_t>(pt);
-
-#ifdef DEBUG
-			std::cout << "ID: " << classifiedObj.ID << ", matched " << pointsMatched << " out of " 
-				<< classifiedObj.features.size() << std::endl;
-#endif
-
-			if (pointsMatched >= 0.5 * classifiedObj.features.size())
+			// calculate intersection of two rectangles.
+			// if area of this intersection is nonzero, the two rectangles contain one another in some way
+			// and we can speculate that the two objects are indeed the same.
+			if ((object.selector & classifiedObj.selector).area() > 0)
 			{
 				objectMatched = true;
 				classifiedObj.mask = objMask;
