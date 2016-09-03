@@ -1,5 +1,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/video.hpp>
+#ifdef DEBUG
+#include <iostream>
+#endif
 #include "movingobject.h"
 
 Segment::Segment(Mat& mask, int area) : 

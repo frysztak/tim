@@ -1,4 +1,7 @@
 #include <opencv2/imgproc.hpp>
+#ifdef DEBUG
+#include <iostream>
+#endif
 #include "classifier.h"
 
 Classifier::Classifier(const std::vector<Point>& points, const std::string& directionStr)

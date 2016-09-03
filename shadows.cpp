@@ -1,5 +1,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
+#ifdef DEBUG
+#include <iostream>
+#endif
 #include "shadows.h"
 #include "background.h"
 
