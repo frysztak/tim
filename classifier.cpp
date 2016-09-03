@@ -151,19 +151,19 @@ void Classifier::drawBoundingBoxes(InputOutputArray _frame)
 	
 	for (auto& obj: classifiedObjects)
 	{
-		rectangle(frame, obj.selector, Scalar(255, 0, 0), 2, 1);
+		rectangle(frame, obj.selector, Scalar(244, 196, 137), 2, LINE_AA);
 
 		std::string text = std::to_string(obj.ID);
-		int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
-		double fontScale = 0.5;
-		int thickness = 2;
+		int fontFace = FONT_HERSHEY_DUPLEX;
+		double fontScale = 0.6;
+		int thickness = 1;
 
 		// center the text
 		putText(frame, text, obj.selector.tl(), fontFace, fontScale,
-		        Scalar::all(255), thickness, 8);
+		        Scalar::all(255), thickness, LINE_AA);
 
 		for (auto& pt: obj.features)
-			circle(frame, pt, 3, Scalar(255, 0, 255));
+			circle(frame, pt, 2, Scalar(53, 171, 245), -1, LINE_AA);
 	}
 
 	//	RotatedRect rect = minAreaRect(contour);

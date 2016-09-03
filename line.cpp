@@ -86,7 +86,7 @@ bool Line::intersect(const Rect& rect) const
 void Line::draw(InputOutputArray _frame)
 {
 	Mat frame = _frame.getMat();
-	Scalar lineColour = isBeingCrossed ? Scalar(0,0,255) : Scalar(0,255,0);
+	Scalar lineColour = isBeingCrossed ? Scalar(19,38,242) : Scalar(197,247,200);
 
 	line(frame, pt1, pt2, lineColour, 2, LINE_AA);
 }
