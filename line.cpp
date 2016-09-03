@@ -1,3 +1,4 @@
+#include <opencv2/imgproc.hpp>
 #include "line.h"
 
 Line::Line(int id, const Point& _pt1, const Point& _pt2) : pt1(_pt1), pt2(_pt2), ID(id)

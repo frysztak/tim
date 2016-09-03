@@ -1,5 +1,6 @@
-#include "background.h"
+#include <opencv2/imgproc.hpp>
 #include <cstdlib>
+#include "background.h"
 
 void BackgroundParameters::parse(const json11::Json& json)
 {

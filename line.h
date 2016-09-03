@@ -1,7 +1,7 @@
 #ifndef LINE_H
 #define LINE_H
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 
 using namespace cv;
 

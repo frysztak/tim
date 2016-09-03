@@ -1,7 +1,7 @@
 #ifndef MOVINGOBJECT_H
 #define MOVINGOBJECT_H
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 #include <map>
 
 using namespace cv;

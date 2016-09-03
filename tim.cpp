@@ -1,9 +1,11 @@
-#include "tim.h"
-#include "json11.hpp"
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <fstream>
 #include <iostream>
 #include <chrono>
 #include <nanomsg/pair.h>
+#include "tim.h"
+#include "json11.hpp"
 
 using namespace json11;
 

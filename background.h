@@ -1,7 +1,7 @@
 #ifndef BACKGROUND_H
 #define BACKGROUND_H
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 #include "json11.hpp"
 
 #define GAUSSIANS_PER_PIXEL 3

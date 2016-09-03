@@ -1,3 +1,4 @@
+#include <opencv2/imgproc.hpp>
 #include "background.h"
 #define USE_SSE2
 #include "sse_mathfun.h"

@@ -1,7 +1,7 @@
 #ifndef CLASSIFIER_H
 #define CLASSIFIER_H
 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 #include "movingobject.h"
 #include "line.h"
 #include "direction.h"

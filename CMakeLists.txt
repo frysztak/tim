@@ -5,7 +5,7 @@ include(ExternalProject)
 find_package(Git REQUIRED)
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED core imgproc video videoio highgui)
 find_package(PkgConfig REQUIRED)
 pkg_search_module(nanomsg REQUIRED nanomsg)
 find_package(Threads REQUIRED)

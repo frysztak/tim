@@ -1,11 +1,13 @@
 #ifndef TIM_H
 #define TIM_H
 
+#include <opencv2/videoio.hpp>
+#include <nanomsg/nn.h>
+#include <string>
 #include "background.h"
 #include "classifier.h"
 #include "shadows.h"
-#include <nanomsg/nn.h>
-#include <string>
+
 
 #define BENCHMARK_FRAMES_NUM 400
 
