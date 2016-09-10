@@ -9,6 +9,10 @@ void BackgroundParameters::parse(const json11::Json& json)
 	learningRate = json["learningRate"].number_value();
 	foregroundThreshold = json["foregroundThreshold"].number_value();
 	medianFilterSize = json["medianFilterSize"].int_value();
+	morphFilterSize = json["morphFilterSize"].int_value();
+
+	if (morphFilterSize != 0)
+		morphFilterKernel = getStructuringElement(MORPH_ELLIPSE, Size(morphFilterSize, morphFilterSize));
 }
 
 Background::Background(const Size& size, const json11::Json& json) :
@@ -77,6 +81,8 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
 
 	if (params.medianFilterSize != 0)
 		medianBlur(foregroundMask, foregroundMask, params.medianFilterSize);
+	if (params.morphFilterSize != 0)
+		erode(foregroundMask, foregroundMask, params.morphFilterKernel);
 }
 
 bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)

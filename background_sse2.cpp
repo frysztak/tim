@@ -20,6 +20,8 @@ void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
 
 	if (params.medianFilterSize != 0)
 		medianBlur(foregroundMask, foregroundMask, params.medianFilterSize);
+	if (params.morphFilterSize != 0)
+		erode(foregroundMask, foregroundMask, params.morphFilterKernel);
 }
 
 

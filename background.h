@@ -11,7 +11,8 @@ using namespace cv;
 struct BackgroundParameters
 {
 	float initialVariance, initialWeight, learningRate, foregroundThreshold;
-	int medianFilterSize;
+	int medianFilterSize, morphFilterSize;
+	Mat morphFilterKernel;
 
 	void parse(const json11::Json& json);
 };
