@@ -21,7 +21,7 @@ class Tim
 		void processFrames();
 
 	private:
-		const string dataRootDir = "/mnt/things/tim/";
+		const string dataRootDir = "/home/sebastian/tim/";
 		const double scaleFactor = .5;
 
 		bool paused = false;
