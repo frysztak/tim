@@ -9,6 +9,13 @@
 
 using namespace json11;
 
+Tim::Tim()
+{
+    char* home = getenv("HOME");
+    if (home != NULL)
+        dataDirs.push_back(string(home).append("/tim/"));
+}
+
 Tim::~Tim()
 {
 	if (background) delete background;
@@ -21,22 +28,35 @@ Tim::~Tim()
 
 bool Tim::open(const string& name, bool benchmark, bool record)
 {
-	string fileName = dataRootDir + "json/" + name + ".json";
-	ifstream jsonFile(fileName, ifstream::in);
-	if (!jsonFile.is_open()) 
-	{
-		cout << "can't open file: " << fileName << endl;
-		return false;
-	}
+    string dataDir = "", jsonFilePath = "";
+    Json json;
 
-	string err, jsonString((std::istreambuf_iterator<char>(jsonFile)), std::istreambuf_iterator<char>());
-	auto json = Json::parse(jsonString, err);
+    for (auto& dir: dataDirs)
+    {
+	    string fileName = dir + "json/" + name + ".json";
+	    ifstream jsonFile(fileName, ifstream::in);
+
+	    if (jsonFile.is_open()) 
+	    {
+            dataDir = dir;
+            jsonFilePath = fileName;
+        	string err, jsonString((std::istreambuf_iterator<char>(jsonFile)), std::istreambuf_iterator<char>());
+        	json = Json::parse(jsonString, err);
+            break;
+	    }
+    }
+
+    if (dataDir.empty())
+    {
+        std::cout << "couldn't find .json file" << std::endl;
+        return false;
+    }
 
 	removeShadows = json["shadowDetection"].bool_value();
 	double startTime = json["startTime"].number_value();
 	std::string naturalDirection = json["naturalDirection"].string_value();
 	
-	auto videoFileName = dataRootDir + "videos/" + json["video"].string_value();
+	auto videoFileName = dataDir + "videos/" + json["video"].string_value();
 	videoCapture.open(videoFileName);
 	if (!videoCapture.isOpened())
 	{
@@ -46,7 +66,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
 	std::remove("/tmp/tim.path");
 	std::ofstream file("/tmp/tim.path");
-	file << fileName;
+	file << jsonFilePath;
 	file.close();
 
 	socket = nn_socket(AF_SP, NN_PAIR);

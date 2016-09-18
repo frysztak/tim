@@ -16,12 +16,13 @@ using namespace std;
 class Tim
 {
 	public:
+        Tim();
 		~Tim();
 		bool open(const string& name, bool benchmark, bool record);
 		void processFrames();
 
 	private:
-		const string dataRootDir = "/home/sebastian/tim/";
+		vector<string> dataDirs;
 		const double scaleFactor = .5;
 
 		bool paused = false;
