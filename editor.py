@@ -76,3 +76,5 @@ if __name__ == '__main__':
     dialog.show()
     sys.exit(myApp.exec_())
 
+
+#  vim: set ft=python ts=8 sw=4 sts=4 tw=0 fenc=utf-8 et: 

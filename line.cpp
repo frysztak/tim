@@ -7,23 +7,23 @@ Line::Line(int id, const Point& _pt1, const Point& _pt2) : pt1(_pt1), pt2(_pt2),
 
 bool Line::sameSigns(int a, int b) const
 {
-	if (a > 0 && b > 0)
-		return true;
-	if (a < 0 && b < 0)
-		return true;
-	if (a == 0 && b == 0)
-		return true;
-	return false;
+    if (a > 0 && b > 0)
+        return true;
+    if (a < 0 && b < 0)
+        return true;
+    if (a == 0 && b == 0)
+        return true;
+    return false;
 }
 
 bool Line::intersect(const Point& _pt1, const Point& _pt2) const
 {
-	// adapted from Graphics Gems volume II
-	// https://webdocs.cs.ualberta.ca/~graphics/books/GraphicsGems/gemsii/xlines.c
-	
-	long a1, a2, b1, b2, c1, c2; /* Coefficients of line eqns. */
+    // adapted from Graphics Gems volume II
+    // https://webdocs.cs.ualberta.ca/~graphics/books/GraphicsGems/gemsii/xlines.c
+    
+    long a1, a2, b1, b2, c1, c2; /* Coefficients of line eqns. */
     long r1, r2, r3, r4;         /* 'Sign' values */
-    long denom;				     /* Intermediate values */
+    long denom;                  /* Intermediate values */
 
     /* Compute a1, b1, c1, where line joining points 1 and 2
      * is "a1 x  +  b1 y  +  c1  =  0".  */
@@ -70,24 +70,26 @@ bool Line::intersect(const Point& _pt1, const Point& _pt2) const
 
 bool Line::intersect(const Rect& rect) const
 {
-	auto x = rect.x, y = rect.y;
-	auto width = rect.width, height = rect.height;
+    auto x = rect.x, y = rect.y;
+    auto width = rect.width, height = rect.height;
 
-	std::vector<bool> intersections = 
-	{
-		intersect(Point(x, y), Point(x + width, y)),
-		intersect(Point(x, y), Point(x, y + height)),
-		intersect(Point(x + width, y + height), Point(x, y + height)),
-		intersect(Point(x + width, y + height), Point(x + width, y))
-	};
+    std::vector<bool> intersections = 
+    {
+        intersect(Point(x, y), Point(x + width, y)),
+        intersect(Point(x, y), Point(x, y + height)),
+        intersect(Point(x + width, y + height), Point(x, y + height)),
+        intersect(Point(x + width, y + height), Point(x + width, y))
+    };
 
-	return std::any_of(intersections.begin(), intersections.end(), [](bool i){ return i == true; });
+    return std::any_of(intersections.begin(), intersections.end(), [](bool i){ return i == true; });
 }
 
 void Line::draw(InputOutputArray _frame)
 {
-	Mat frame = _frame.getMat();
-	Scalar lineColour = isBeingCrossed ? Scalar(19,38,242) : Scalar(197,247,200);
+    Mat frame = _frame.getMat();
+    Scalar lineColour = isBeingCrossed ? Scalar(19,38,242) : Scalar(197,247,200);
 
-	line(frame, pt1, pt2, lineColour, 2, LINE_AA);
+    line(frame, pt1, pt2, lineColour, 2, LINE_AA);
 }
+
+/* vim: set ft=cpp ts=4 sw=4 sts=4 tw=0 fenc=utf-8 et: */

@@ -189,3 +189,5 @@ if __name__ == '__main__':
     cv2.destroyAllWindows()
     socket.close()
     sys.exit(0)
+
+#  vim: set ft=python ts=8 sw=4 sts=4 tw=0 fenc=utf-8 et: 

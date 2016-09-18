@@ -15,35 +15,37 @@ using namespace std;
 
 class Tim
 {
-	public:
+    public:
         Tim();
-		~Tim();
-		bool open(const string& name, bool benchmark, bool record);
-		void processFrames();
+        ~Tim();
+        bool open(const string& name, bool benchmark, bool record);
+        void processFrames();
 
-	private:
-		vector<string> dataDirs;
-		const double scaleFactor = .5;
+    private:
+        vector<string> dataDirs;
+        const double scaleFactor = .5;
 
-		bool paused = false;
-		bool benchmarkMode = false, record = false;
-		bool removeShadows = false;
-		uint32_t frameCount = 0;
+        bool paused = false;
+        bool benchmarkMode = false, record = false;
+        bool removeShadows = false;
+        uint32_t frameCount = 0;
 
-		Background* background = nullptr;
-		Shadows* shadows = nullptr;
-		Classifier* classifier = nullptr;
-		VideoCapture videoCapture;
-		VideoWriter videoWriter;
-		Size frameSize;
-		Mat roiMask, objectLabels, objectLabelsCopy;
+        Background* background = nullptr;
+        Shadows* shadows = nullptr;
+        Classifier* classifier = nullptr;
+        VideoCapture videoCapture;
+        VideoWriter videoWriter;
+        Size frameSize;
+        Mat roiMask, objectLabels, objectLabelsCopy;
 
-		// a copy is needed when playback is paused, but we want to update shadow detection params
-		std::vector<MovingObject> movingObjects, movingObjectsCopy;
+        // a copy is needed when playback is paused, but we want to update shadow detection params
+        std::vector<MovingObject> movingObjects, movingObjectsCopy;
 
-		int socket;
+        int socket;
 
-		void detectMovingObjects(InputArray _fgMask);
+        void detectMovingObjects(InputArray _fgMask);
 };
 
 #endif
+
+/* vim: set ft=cpp ts=4 sw=4 sts=4 tw=0 fenc=utf-8 et: */
