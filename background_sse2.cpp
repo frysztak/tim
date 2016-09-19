@@ -244,8 +244,8 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         
         __m128 newEpsilon_bg = _mm_set1_ps(2 * log(2 * M_PI));
 
-        __m128 varianceTmp = log_ps(_mm_sqrt_ps(variance));
-        varianceTmp = _mm_mul_ps(varianceTmp, _mm_set1_ps(3.0));
+        // varianceTmp = 3ln(sqrt(variance)) = 1.5ln(variance)
+        __m128 varianceTmp = _mm_mul_ps(log_ps(variance), _mm_set1_ps(1.5));
         newEpsilon_bg = _mm_add_ps(newEpsilon_bg, varianceTmp);
 
         __m128 dB = _mm_sub_ps(B, meanB);
