@@ -123,7 +123,6 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 
         // dX = dX^2
         dB = _mm_mul_ps(dB, dB);
-
         dG = _mm_mul_ps(dG, dG);
         dR = _mm_mul_ps(dR, dR);
 
@@ -229,11 +228,13 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         _mm_store_ps(24 + 4*i + gaussian, value);
         // variance
         value = _mm_load_ps(36 + 4*i + gaussian);
-        value = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(params.initialVariance)), _mm_andnot_ps(isMin, value));
+        value = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(params.initialVariance)), 
+                          _mm_andnot_ps(isMin, value));
         _mm_store_ps(36 + 4*i + gaussian, value);
 
         // modify weights only locally, we'll need them in just a bit
-        weights[i] = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(params.initialWeight)), _mm_andnot_ps(isMin, weights[i]));
+        weights[i] = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(params.initialWeight)), 
+                               _mm_andnot_ps(isMin, weights[i]));
     }
 
     // now we should make sure that sum of weights equals to 1.
