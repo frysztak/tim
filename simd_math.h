@@ -21,10 +21,10 @@ inline __m128 exp_approx_ps(__m128 x)
 inline __m128 log_approx_ps(__m128 x)
 {
     // this approximation is not meant for general use.
-    // it closely approximates 1.5*log(x) for a very small range of x = [4, 5].
-    // y = -0.0372383*x^2 + 0.6693217*x - 0.0017514 
+    // it closely approximates 1.5*log(x) + 2log(2pi) for a very small range of x = [4, 5].
+    // y = -0.0372383*x^2 + 0.6693217*x + 3.674002733 
     
-    __m128 y = _mm_set1_ps(-1.75139092193e-03);
+    __m128 y = _mm_set1_ps(3.674002733);
     __m128 constant = _mm_set1_ps(6.69321654748e-01);
     y = _mm_add_ps(y, _mm_mul_ps(constant, x));
     constant = _mm_set1_ps(-3.72382626847e-02);
@@ -32,7 +32,6 @@ inline __m128 log_approx_ps(__m128 x)
 
     return y;
 }
-
 
 #endif
 
