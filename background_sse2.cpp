@@ -2,6 +2,7 @@
 #include "background.h"
 #define USE_SSE2
 #include "sse_mathfun.h"
+#include "simd_math.h"
 
 void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
 {
@@ -128,7 +129,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         __m128 exponent = _mm_mul_ps(distance, _mm_set1_ps(-0.5));
         exponent = _mm_div_ps(exponent, variance);
 
-        __m128 eta = exp_ps(exponent);
+        __m128 eta = exp_approx_ps(exponent);
         __m128 denominator = _mm_set1_ps(etaConst);
         denominator = _mm_mul_ps(denominator, stdDev);
         denominator = _mm_mul_ps(denominator, stdDev);
