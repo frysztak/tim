@@ -34,46 +34,66 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
     // they need to be converted to float and reordered into
     // B1B2B3B4 G1G2G3G4 R1R2R3R4
     
-    bgr = _mm_slli_si128(bgr, 4);
-    // shift bgr 4 bits left. now it contains:
-    // 0000 B1G1R1B2 G2R2B3G3 R3B4G4R4
+    __m128i Bi = _mm_setzero_si128();
+    __m128i Gi = _mm_setzero_si128();
+    __m128i Ri = _mm_setzero_si128();
+    __m128i tmp1, tmp2;
 
-    // to convert uint8_t to floats it'd easy to use _mm_cvtpu8_ps, but it takes __m64 as argument
-    // instead, we'll have to expand uint8_t to uint32_t and then use _mm_cvtepi32_ps
-    __m128i hi16 = _mm_unpacklo_epi8(bgr, _mm_set1_epi8(0)); // 0G2 0R2 0B3 0G3 0R3 0B4 0G4 0R4
-    __m128i lo16 = _mm_unpackhi_epi8(bgr, _mm_set1_epi8(0)); // 00  00  00  00  0B1 0G1 0R1 0B2
-    // now we have 16-bit values, expand them to 32-bit
-    __m128i lo32 = _mm_unpackhi_epi16(lo16, _mm_set1_epi16(0)); // 000R3 000B4 000G4 000R4
-    __m128i mi32 = _mm_unpacklo_epi16(lo16, _mm_set1_epi16(0)); // 000G2 000R2 000B3 000G3
-    __m128i hi32 = _mm_unpackhi_epi16(hi16, _mm_set1_epi16(0)); // 000B1 000G1 000R1 000B2
+    // to at least try make use of CPU's dual-issue,
+    // we're gonna extract and shift bytes in pairs
+    
+    // extract B1 and G1
+    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0xFF,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)); // B1000 0000 0000 0000
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0xFF,0,0,0,0,0,0,0,0,0,0,0,0,0,0)); // 0G100 0000 0000 0000
+    tmp1 = _mm_srli_si128(tmp1, 0);
+    tmp2 = _mm_srli_si128(tmp2, 1);
+    Bi = _mm_or_si128(Bi, tmp1); // B1000 0000 0000 0000
+    Gi = _mm_or_si128(Gi, tmp2); // G1000 0000 0000 0000
+    
+    // extract R1 and B2
+    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0xFF,0,0,0,0,0,0,0,0,0,0,0,0,0)); // 00R10 0000 0000 0000
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0xFF,0,0,0,0,0,0,0,0,0,0,0,0)); // 000B2 0000 0000 0000
+    tmp1 = _mm_srli_si128(tmp1, 2);
+    tmp2 = _mm_slli_si128(tmp2, 1);
+    Ri = _mm_or_si128(Ri, tmp1); // R1000 0000  0000 0000
+    Bi = _mm_or_si128(Bi, tmp2); // B1000 B2000 0000 0000
 
-    // now convert to floats.
-    // from now on, {B,G,R}n represent 32-bit floats, not 8-bit bytes.
-    __m128 lo = _mm_cvtepi32_ps(lo32); // R3 B4 G4 R4
-    __m128 mi = _mm_cvtepi32_ps(mi32); // G2 R2 B3 G3
-    __m128 hi = _mm_cvtepi32_ps(hi32); // B1 G1 R1 B2
+    // extract G2 and R2
+    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0xFF,0,0,0,0,0,0,0,0,0,0,0)); // 0000 G2000 0000 0000
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0xFF,0,0,0,0,0,0,0,0,0,0)); // 0000 0R200 0000 0000
+    tmp1 = _mm_srli_si128(tmp1, 0);
+    tmp2 = _mm_srli_si128(tmp2, 1);
+    Gi = _mm_or_si128(Gi, tmp1); // G1000 G2000 0000 0000
+    Ri = _mm_or_si128(Ri, tmp2); // R1000 R2000 0000 0000
+    
+    // extract B3 and G3
+    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0xFF,0,0,0,0,0,0,0,0,0)); // 0000 00B30 0000 0000
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0xFF,0,0,0,0,0,0,0,0)); // 0000 000G3 0000 0000
+    tmp1 = _mm_slli_si128(tmp1, 2);
+    tmp2 = _mm_slli_si128(tmp2, 1);
+    Bi = _mm_or_si128(Bi, tmp1); // B1000 B2000 B3000 0000
+    Gi = _mm_or_si128(Gi, tmp2); // G1000 G2000 G3000 0000
+    
+    // extract R3 and B4
+    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0xFF,0,0,0,0,0,0,0)); // 0000 0000 R3000 0000
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0,0xFF,0,0,0,0,0,0)); // 0000 0000 0B400 0000
+    tmp1 = _mm_slli_si128(tmp1, 0);
+    tmp2 = _mm_slli_si128(tmp2, 3);
+    Ri = _mm_or_si128(Ri, tmp1); // R1000 R2000 R3000 0000
+    Bi = _mm_or_si128(Bi, tmp2); // B1000 B2000 B3000 B4000
+    
+    // extract G4 and R4
+    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0,0,0xFF,0,0,0,0,0)); // 0000 0000 00G40 0000
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0,0,0,0xFF,0,0,0,0)); // 0000 0000 000R4 0000
+    tmp1 = _mm_slli_si128(tmp1, 2);
+    tmp2 = _mm_slli_si128(tmp2, 1);
+    Gi = _mm_or_si128(Gi, tmp1); // G1000 G2000 G3000 G4000
+    Ri = _mm_or_si128(Ri, tmp2); // R1000 R2000 R3000 R4000
 
-    hi = _mm_shuffle_ps(hi, hi, _MM_SHUFFLE(1, 2, 3, 0)); // B1 B2 R1 G1
-    __m128 r1_r2 = _mm_shuffle_ps(hi, mi, _MM_SHUFFLE(1, 0, 0, 2)); // R1 B1 G2 R2
-
-    __m128 hi_tmp = _mm_shuffle_ps(hi, mi, _MM_SHUFFLE(3, 2, 1, 0)); // B1 B2 B3 R2
-    hi_tmp = _mm_shuffle_ps(hi_tmp, hi_tmp, _MM_SHUFFLE(0, 2, 1, 3)); // R2 B2 B3 B1
-    hi_tmp = _mm_move_ss(hi_tmp, _mm_shuffle_ps(lo, lo, _MM_SHUFFLE(0, 0, 0, 1))); // B4 B2 B3 B1
-    hi_tmp = _mm_shuffle_ps(hi_tmp, hi_tmp, _MM_SHUFFLE(0, 2, 1, 3)); // B1 B2 B3 B4
-
-    mi = _mm_shuffle_ps(mi, mi, _MM_SHUFFLE(1, 3, 0, 2)); // B3 G2 G3 R2
-    mi = _mm_move_ss(mi, _mm_shuffle_ps(hi, hi, _MM_SHUFFLE(0, 0, 0, 3))); // G1 G2 G3 R2
-    mi = _mm_shuffle_ps(mi, mi, _MM_SHUFFLE(0, 2, 1, 3)); // R2 G2 G3 G1
-    mi = _mm_move_ss(mi, _mm_shuffle_ps(lo, lo, _MM_SHUFFLE(0, 0, 0, 2))); // G4 G2 G3 G1
-    mi = _mm_shuffle_ps(mi, mi, _MM_SHUFFLE(0, 2, 1, 3)); // G1 G2 G3 G4
-
-    lo = _mm_shuffle_ps(lo, lo, _MM_SHUFFLE(3, 0, 1, 2)); // G4 B4 R3 R4 
-    lo = _mm_shuffle_ps(r1_r2, lo, _MM_SHUFFLE(3, 2, 3, 0)); // R1 R2 R3 R4
-
-    // colours are now nicely shuffled
-    __m128 B = hi_tmp;
-    __m128 G = mi;
-    __m128 R = lo;
+    // now convert to float
+    __m128 B = _mm_cvtepi32_ps(Bi);
+    __m128 G = _mm_cvtepi32_ps(Gi);
+    __m128 R = _mm_cvtepi32_ps(Ri);
     
     // memory layout looks like this:
     // (gaussian + 0): meanB for Gaussian #1
