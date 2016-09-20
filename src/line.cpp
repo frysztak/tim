@@ -81,7 +81,7 @@ bool Line::intersect(const Rect& rect) const
         intersect(Point(x + width, y + height), Point(x + width, y))
     };
 
-    return std::any_of(intersections.begin(), intersections.end(), [](bool i){ return i == true; });
+    return std::any_of(intersections.begin(), intersections.end(), [](bool i){ return i; });
 }
 
 void Line::draw(InputOutputArray _frame)

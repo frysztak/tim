@@ -150,8 +150,9 @@ void Tim::processFrames()
         shadowMask = Mat::zeros(frameSize, CV_8U);
         if (removeShadows)
         {
-            shadows->removeShadows(inputFrame, background->getCurrentBackground(), background->getCurrentStdDev(), 
-                    foregroundMask, objectLabels, movingObjects, shadowMask);
+            shadows->removeShadows(inputFrame, background->getCurrentBackground(), 
+                                   background->getCurrentStdDev(), foregroundMask, 
+                                   objectLabels, movingObjects, shadowMask);
         }
 
         if (!benchmarkMode)
@@ -216,7 +217,8 @@ void Tim::processFrames()
     if (benchmarkMode)
     {
         auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
-        std::cout << "processed " << BENCHMARK_FRAMES_NUM << " frames in " << time_span.count() << " seconds." << std::endl;
+        std::cout << "processed " << BENCHMARK_FRAMES_NUM << " frames in " << time_span.count() 
+                  << " seconds." << std::endl;
         std::cout << "average " << BENCHMARK_FRAMES_NUM / time_span.count() << " fps. " << std::endl;
     }
 }

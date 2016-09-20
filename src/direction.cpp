@@ -49,5 +49,4 @@ Direction& Direction::operator=(const Direction&& other)
     return *this;
 }
 
-
 /* vim: set ft=cpp ts=4 sw=4 sts=4 tw=0 fenc=utf-8 et: */

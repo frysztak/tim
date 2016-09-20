@@ -80,7 +80,8 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
             grThr *= meanSum[0] * stdDevSum[0] / objSize; 
             grThr *= params.gradientThresholdMultiplier;
 #if DEBUG
-            std::cout << "ID: " << object.ID << ", threshold: " << grThr << ", obj size: " << objSize << std::endl;
+            std::cout << "ID: " << object.ID << ", threshold: " << grThr << ", obj size: " 
+                      << objSize << std::endl;
 #endif
         }
 
@@ -127,8 +128,9 @@ void Shadows::removeShadows(InputArray _src, InputArray _bg, InputArray _bgStdDe
 
             // luminance criterion  (eq. 10)
             Scalar mean = cv::mean(D(selector), segment.mask);
-            bool luminance_ok = (mean[0] > params.luminanceThreshold) && (mean[1] > params.luminanceThreshold) && 
-                (mean[2] > params.luminanceThreshold);
+            bool luminance_ok = (mean[0] > params.luminanceThreshold) && 
+                                (mean[1] > params.luminanceThreshold) && 
+                                (mean[2] > params.luminanceThreshold);
             if (!luminance_ok)
             {
                 // it's surely foreground
