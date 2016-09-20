@@ -34,61 +34,25 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
     // they need to be converted to float and reordered into
     // B1B2B3B4 G1G2G3G4 R1R2R3R4
     
-    __m128i Bi = _mm_setzero_si128();
-    __m128i Gi = _mm_setzero_si128();
-    __m128i Ri = _mm_setzero_si128();
-    __m128i tmp1, tmp2;
-
-    // to at least try make use of CPU's dual-issue,
-    // we're gonna extract and shift bytes in pairs
-    
-    // extract B1 and G1
-    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0xFF,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)); // B1000 0000 0000 0000
-    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0xFF,0,0,0,0,0,0,0,0,0,0,0,0,0,0)); // 0G100 0000 0000 0000
-    tmp1 = _mm_srli_si128(tmp1, 0);
-    tmp2 = _mm_srli_si128(tmp2, 1);
-    Bi = _mm_or_si128(Bi, tmp1); // B1000 0000 0000 0000
-    Gi = _mm_or_si128(Gi, tmp2); // G1000 0000 0000 0000
-    
-    // extract R1 and B2
-    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0xFF,0,0,0,0,0,0,0,0,0,0,0,0,0)); // 00R10 0000 0000 0000
-    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0xFF,0,0,0,0,0,0,0,0,0,0,0,0)); // 000B2 0000 0000 0000
-    tmp1 = _mm_srli_si128(tmp1, 2);
+    __m128i tmp1, tmp2, tmp3;
+    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0xFF,0xFF,0xFF,0,0,0,0,0,0,0,0,0,0,0,0,0)); // B1G1R1 
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0xFF,0xFF,0xFF,0,0,0,0,0,0,0,0,0,0)); // B2G2R2 
+    tmp3 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0xFF,0xFF,0xFF,0,0,0,0,0,0,0)); // B3G3R3 
     tmp2 = _mm_slli_si128(tmp2, 1);
-    Ri = _mm_or_si128(Ri, tmp1); // R1000 0000  0000 0000
-    Bi = _mm_or_si128(Bi, tmp2); // B1000 B2000 0000 0000
-
-    // extract G2 and R2
-    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0xFF,0,0,0,0,0,0,0,0,0,0,0)); // 0000 G2000 0000 0000
-    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0xFF,0,0,0,0,0,0,0,0,0,0)); // 0000 0R200 0000 0000
-    tmp1 = _mm_srli_si128(tmp1, 0);
-    tmp2 = _mm_srli_si128(tmp2, 1);
-    Gi = _mm_or_si128(Gi, tmp1); // G1000 G2000 0000 0000
-    Ri = _mm_or_si128(Ri, tmp2); // R1000 R2000 0000 0000
-    
-    // extract B3 and G3
-    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0xFF,0,0,0,0,0,0,0,0,0)); // 0000 00B30 0000 0000
-    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0xFF,0,0,0,0,0,0,0,0)); // 0000 000G3 0000 0000
-    tmp1 = _mm_slli_si128(tmp1, 2);
-    tmp2 = _mm_slli_si128(tmp2, 1);
-    Bi = _mm_or_si128(Bi, tmp1); // B1000 B2000 B3000 0000
-    Gi = _mm_or_si128(Gi, tmp2); // G1000 G2000 G3000 0000
-    
-    // extract R3 and B4
-    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0xFF,0,0,0,0,0,0,0)); // 0000 0000 R3000 0000
-    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0,0xFF,0,0,0,0,0,0)); // 0000 0000 0B400 0000
-    tmp1 = _mm_slli_si128(tmp1, 0);
+    tmp3 = _mm_slli_si128(tmp3, 2);
+    tmp1 = _mm_or_si128(tmp1, tmp2);
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0,0xFF,0xFF,0xFF,0,0,0,0)); // B4G4R4 
     tmp2 = _mm_slli_si128(tmp2, 3);
-    Ri = _mm_or_si128(Ri, tmp1); // R1000 R2000 R3000 0000
-    Bi = _mm_or_si128(Bi, tmp2); // B1000 B2000 B3000 B4000
-    
-    // extract G4 and R4
-    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0,0,0xFF,0,0,0,0,0)); // 0000 0000 00G40 0000
-    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0,0,0,0,0,0,0,0,0,0xFF,0,0,0,0)); // 0000 0000 000R4 0000
-    tmp1 = _mm_slli_si128(tmp1, 2);
-    tmp2 = _mm_slli_si128(tmp2, 1);
-    Gi = _mm_or_si128(Gi, tmp1); // G1000 G2000 G3000 G4000
-    Ri = _mm_or_si128(Ri, tmp2); // R1000 R2000 R3000 R4000
+    tmp3 = _mm_or_si128(tmp3, tmp2);
+    bgr = _mm_or_si128(tmp1, tmp3);
+
+    // bgr now contains:
+    // B1G1R10 B2G2R20 B3G3R30 B4G4R40
+    __m128i Bi = _mm_and_si128(bgr, _mm_setr_epi8(0xFF,0,0,0, 0xFF,0,0,0, 0xFF,0,0,0, 0xFF,0,0,0)); 
+    __m128i Gi = _mm_and_si128(bgr, _mm_setr_epi8(0,0xFF,0,0, 0,0xFF,0,0, 0,0xFF,0,0, 0,0xFF,0,0)); 
+    __m128i Ri = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0xFF,0, 0,0,0xFF,0, 0,0,0xFF,0, 0,0,0xFF,0)); 
+    Gi = _mm_srli_si128(Gi, 1);
+    Ri = _mm_srli_si128(Ri, 2);
 
     // now convert to float
     __m128 B = _mm_cvtepi32_ps(Bi);
