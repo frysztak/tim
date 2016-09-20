@@ -30,8 +30,12 @@ if (DEBUG)
     add_definitions(-DDEBUG)
 endif()
 
+## Set data dir for json and video files
+set(CMAKE_DATA_DIR "${CMAKE_SOURCE_DIR}/data/")
+add_definitions(-DDATA_DIR="${CMAKE_DATA_DIR}")
+
 ## Find all source files to be compiled into object files
-file(GLOB SOURCES *.cpp)
+file(GLOB SOURCES src/*.cpp)
 
 ## C++ compiler options
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -std=c++14")
