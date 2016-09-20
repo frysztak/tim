@@ -34,8 +34,7 @@ if __name__ == '__main__':
     socket.bind('ipc:///tmp/tim.ipc')
 
     currentMode = Modes.NORMAL
-    videosPath = os.path.expanduser('~') + '/tim/videos/'
-    cap = cv2.VideoCapture(os.path.join(videosPath, jsonData['video']))
+    cap = cv2.VideoCapture(filePath.replace('json', 'mp4'))
     ret, frame = cap.read()
     mask = np.zeros(frame.shape, np.uint8)
     polygonPoints = []

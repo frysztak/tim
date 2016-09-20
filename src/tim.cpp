@@ -58,7 +58,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
     // so that I don't have to specify anything when running Python scripts
     std::remove("/tmp/tim.path");
     std::ofstream file("/tmp/tim.path");
-    file << DATA_DIR + jsonFileName;
+    file << jsonFileName;
     file.close();
 
     // create nanomsg socket. it's used to communicate with Python scripts.
