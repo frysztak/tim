@@ -48,16 +48,16 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 
     // bgr now contains:
     // B1G1R10 B2G2R20 B3G3R30 B4G4R40
-    __m128i Bi = _mm_and_si128(bgr, _mm_setr_epi8(0xFF,0,0,0, 0xFF,0,0,0, 0xFF,0,0,0, 0xFF,0,0,0)); 
-    __m128i Gi = _mm_and_si128(bgr, _mm_setr_epi8(0,0xFF,0,0, 0,0xFF,0,0, 0,0xFF,0,0, 0,0xFF,0,0)); 
-    __m128i Ri = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0xFF,0, 0,0,0xFF,0, 0,0,0xFF,0, 0,0,0xFF,0)); 
-    Gi = _mm_srli_si128(Gi, 1);
-    Ri = _mm_srli_si128(Ri, 2);
+    tmp1 = _mm_and_si128(bgr, _mm_setr_epi8(0xFF,0,0,0, 0xFF,0,0,0, 0xFF,0,0,0, 0xFF,0,0,0)); 
+    tmp2 = _mm_and_si128(bgr, _mm_setr_epi8(0,0xFF,0,0, 0,0xFF,0,0, 0,0xFF,0,0, 0,0xFF,0,0)); 
+    tmp3 = _mm_and_si128(bgr, _mm_setr_epi8(0,0,0xFF,0, 0,0,0xFF,0, 0,0,0xFF,0, 0,0,0xFF,0)); 
+    tmp2 = _mm_srli_si128(tmp2, 1);
+    tmp3 = _mm_srli_si128(tmp3, 2);
 
     // now convert to float
-    __m128 B = _mm_cvtepi32_ps(Bi);
-    __m128 G = _mm_cvtepi32_ps(Gi);
-    __m128 R = _mm_cvtepi32_ps(Ri);
+    __m128 B = _mm_cvtepi32_ps(tmp1);
+    __m128 G = _mm_cvtepi32_ps(tmp2);
+    __m128 R = _mm_cvtepi32_ps(tmp3);
     
     // memory layout looks like this:
     // (gaussian + 0): meanB for Gaussian #1
