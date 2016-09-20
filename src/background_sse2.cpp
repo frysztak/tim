@@ -93,12 +93,11 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         // distance = dB + dG + dR
         // bear in mind that in this context dX is already squared
         __m128 distance = _mm_add_ps(_mm_add_ps(dB, dG), dR);
-        __m128 distanceSqrt = _mm_sqrt_ps(distance);
 
-        __m128 stdDev = _mm_sqrt_ps(variance);
-
-        //if (sqrt(distance) < 2.5*sqrt(gauss.variance))
-        __m128 mask = _mm_cmplt_ps(distanceSqrt, _mm_mul_ps(stdDev, _mm_set1_ps(2.5)));
+        // if (sqrt(distance) < 2.5*sqrt(gauss.variance))
+        // equals to
+        // if (distance < 6.25*gauss.variance)
+        __m128 mask = _mm_cmplt_ps(distance, _mm_mul_ps(variance, _mm_set1_ps(6.25)));
         // if (!matched)
         mask = _mm_andnot_ps(matched, mask);
 
@@ -110,13 +109,9 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         __m128 exponent = _mm_mul_ps(distance, _mm_set1_ps(-0.5));
         exponent = _mm_div_ps(exponent, variance);
 
-        __m128 eta = exp_approx_ps(exponent);
-        __m128 denominator = _mm_set1_ps(etaConst);
-        denominator = _mm_mul_ps(denominator, stdDev);
-        denominator = _mm_mul_ps(denominator, stdDev);
-        denominator = _mm_mul_ps(denominator, stdDev);
-        eta = _mm_div_ps(eta, denominator);
-
+        // to be precise we should divide by etaConst*sigma^3, but sigma^2 is good enough
+        __m128 eta = _mm_div_ps(exp_approx_ps(exponent),
+                                _mm_mul_ps(_mm_set1_ps(etaConst), variance));
         __m128 rho = _mm_mul_ps(eta, _mm_set1_ps(params.learningRate));
         __m128 oneMinusRho = _mm_sub_ps(_mm_set1_ps(1.0), rho);
 
