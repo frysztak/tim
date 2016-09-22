@@ -161,16 +161,22 @@ void Tim::processFrames()
             if (!paused)
             {
                 Mat mask = params.removeShadows ? (shadowMask == 2) : foregroundMask;
-                classifier->trackObjects(displayFrame, mask, movingObjects);
-                classifier->checkCollisions();
-                classifier->updateCounters();
-                if (params.classifyColours)
-                    classifier->classifyColours(displayFrame);
+                if (!params.dontTrack)
+                {
+                    classifier->trackObjects(displayFrame, mask, movingObjects);
+                    classifier->checkCollisions();
+                    classifier->updateCounters();
+                    if (params.classifyColours)
+                        classifier->classifyColours(displayFrame);
+                }
             }
 
-            classifier->drawBoundingBoxes(displayFrame, params.classifyColours);
-            classifier->drawCollisionLines(displayFrame);
-            classifier->drawCounters(displayFrame);
+            if (!params.dontTrack)
+            {
+                classifier->drawBoundingBoxes(displayFrame, params.classifyColours);
+                classifier->drawCollisionLines(displayFrame);
+                classifier->drawCounters(displayFrame);
+            }
 
             cvtColor(foregroundMask * 255, foregroundMaskBGR, COLOR_GRAY2BGR);
             hconcat(displayFrame, foregroundMaskBGR, row1);

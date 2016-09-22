@@ -18,6 +18,7 @@ struct TimParameters
     bool benchmark;
     bool record;
     bool classifyColours;
+    bool dontTrack;
     bool removeShadows = false;
 };
 

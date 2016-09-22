@@ -9,6 +9,7 @@ int main(int argc, char** argv)
         "{@file          |<none>| input file                      }"
         "{b benchmark    |      | benchmark mode                  }"
         "{r record       |      | record output                   }"
+        "{dnt            |      | don't track moving objects      }"
         "{cc colours     |      | classify colours of passing objects"
         " (more experimental and broken than anything else in this application) }";
 
@@ -26,7 +27,8 @@ int main(int argc, char** argv)
         .fileName = parser.get<String>(0), 
         .benchmark = parser.has("b"),
         .record = parser.has("r"),
-        .classifyColours = parser.has("cc")
+        .classifyColours = parser.has("cc"),
+        .dontTrack = parser.has("dnt"),
     };
 
     if (!parser.check())
