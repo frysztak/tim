@@ -69,7 +69,6 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
     // and so on...
     
     __m128 matched  = _mm_setzero_ps();
-    __m128 weightSum = _mm_setzero_ps();
     for (int i = 0; i < GAUSSIANS_PER_PIXEL; i++)
     {
         int offset = 4 * i;
@@ -107,11 +106,11 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 
         // calculate exponent
         __m128 exponent = _mm_mul_ps(distance, _mm_set1_ps(-0.5));
-        exponent = _mm_div_ps(exponent, variance);
+        exponent = _mm_mul_ps(exponent, _mm_rcp_ps(variance));
 
         // to be precise we should divide by etaConst*sigma^3, but sigma^2 is good enough
-        __m128 eta = _mm_div_ps(exp_approx_ps(exponent),
-                                _mm_mul_ps(_mm_set1_ps(etaConst), variance));
+        __m128 eta = _mm_mul_ps(exp_approx_ps(exponent),
+                                _mm_rcp_ps(_mm_mul_ps(_mm_set1_ps(etaConst), variance)));
         __m128 rho = _mm_mul_ps(eta, _mm_set1_ps(params.learningRate));
         __m128 oneMinusRho = _mm_sub_ps(_mm_set1_ps(1.0), rho);
 
@@ -137,7 +136,6 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         mask = _mm_xor_ps(mask, (__m128)_mm_cmpeq_epi8(junk,junk)); 
         __m128 newWeight = _mm_mul_ps(weight, _mm_set1_ps(1.0 - params.learningRate));
         weight = _mm_or_ps(_mm_and_ps(mask, newWeight), _mm_andnot_ps(mask, weight));
-        weightSum = _mm_add_ps(weightSum, weight);
 
         _mm_store_ps(00 + offset + gaussian, meanB);
         _mm_store_ps(12 + offset + gaussian, meanG);
@@ -197,10 +195,12 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
     }
 
     // now we should make sure that sum of weights equals to 1.
-    weightSum = _mm_add_ps(weights[0], _mm_add_ps(weights[1], weights[2]));
+    // to skip expensive division, calculate reciprocal of weightSum and then multiply
+    __m128 weightSum = _mm_add_ps(weights[0], _mm_add_ps(weights[1], weights[2]));
+    weightSum = _mm_rcp_ps(weightSum);
     for (int i = 0; i < 3; i++)
     {
-        weights[i] = _mm_div_ps(weights[i], weightSum);
+        weights[i] = _mm_mul_ps(weights[i], weightSum);
         _mm_store_ps(48 + 4*i + gaussian, weights[i]);
     }
 
@@ -220,6 +220,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         __m128 meanG    = _mm_load_ps(12 + 4*i + gaussian);
         __m128 meanR    = _mm_load_ps(24 + 4*i + gaussian);
         __m128 variance = _mm_load_ps(36 + 4*i + gaussian);
+        __m128 varianceReciprocal = _mm_rcp_ps(variance);
         
         // newEplison_bg = 2log(2pi) + 3log(sqrt(variance)) 
         // newEplison_bg = 2log(2pi) + 1.5log(variance)
@@ -228,15 +229,15 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 
         __m128 dB = _mm_sub_ps(B, meanB);
         dB = _mm_mul_ps(_mm_set1_ps(0.5), _mm_mul_ps(dB, dB));
-        newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_div_ps(dB, variance));
+        newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_mul_ps(dB, varianceReciprocal));
 
         __m128 dG = _mm_sub_ps(G, meanG);
         dG = _mm_mul_ps(_mm_set1_ps(0.5), _mm_mul_ps(dG, dG));
-        newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_div_ps(dG, variance));
+        newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_mul_ps(dG, varianceReciprocal));
 
         __m128 dR = _mm_sub_ps(R, meanR);
         dR = _mm_mul_ps(_mm_set1_ps(0.5), _mm_mul_ps(dR, dR));
-        newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_div_ps(dR, variance));
+        newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_mul_ps(dR, varianceReciprocal));
 
         __m128 newFgMask = _mm_cmpgt_ps(newEpsilon_bg, _mm_set1_ps(params.foregroundThreshold));
         fgMask = _mm_or_ps(_mm_and_ps(isMax, newFgMask), _mm_andnot_ps(isMax, fgMask));
