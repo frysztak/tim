@@ -14,7 +14,7 @@ void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
                                            currentBackground.data + 3*idx,
                                            (float*)currentStdDev.data + idx);
 
-        foregroundMask.at<uint32_t>(idx/4) = fgMask;
+        *((uint32_t*)foregroundMask.data + idx/4) = fgMask;
     }
 
     if (params.medianFilterSize != 0)
@@ -22,7 +22,6 @@ void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
     if (params.morphFilterSize != 0)
         erode(foregroundMask, foregroundMask, params.morphFilterKernel);
 }
-
 
 uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
                                       uint8_t* currentBackground, float* currentStdDev)
