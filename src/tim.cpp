@@ -19,7 +19,7 @@ Tim::~Tim()
     std::remove("/tmp/tim.path");
 }
 
-bool Tim::open(const string& name, bool benchmark, bool record)
+bool Tim::open(const string& name, bool benchmark, bool record, bool classifyColours)
 {
 #ifndef DATA_DIR
 #error data dir is not defined.
@@ -114,6 +114,7 @@ bool Tim::open(const string& name, bool benchmark, bool record)
 
     this->benchmarkMode = benchmark;
     this->record = record;
+    this->classifyColours = classifyColours;
 
     return true;
 }
@@ -166,9 +167,11 @@ void Tim::processFrames()
                 classifier->trackObjects(displayFrame, mask, movingObjects);
                 classifier->checkCollisions();
                 classifier->updateCounters();
+                if (classifyColours)
+                    classifier->classifyColours(displayFrame);
             }
 
-            classifier->drawBoundingBoxes(displayFrame);
+            classifier->drawBoundingBoxes(displayFrame, classifyColours);
             classifier->drawCollisionLines(displayFrame);
             classifier->drawCounters(displayFrame);
 

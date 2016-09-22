@@ -16,14 +16,14 @@ class Tim
 {
     public:
         ~Tim();
-        bool open(const string& name, bool benchmark, bool record);
+        bool open(const string& name, bool benchmark, bool record, bool classifyColours);
         void processFrames();
 
     private:
         const double scaleFactor = .5;
 
         bool paused = false;
-        bool benchmarkMode = false, record = false;
+        bool benchmarkMode = false, record = false, classifyColours = false;
         bool removeShadows = false;
         uint32_t frameCount = 0;
 

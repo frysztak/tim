@@ -5,10 +5,12 @@ using namespace cv;
 int main(int argc, char** argv)
 {
     const String keys =
-        "{help h usage ? |      | print this message   }"
-        "{@file          |<none>| input file           }"
-        "{b benchmark    |      | benchmark mode       }"
-        "{r record       |      | record output        }";
+        "{help h usage ? |      | print this message              }"
+        "{@file          |<none>| input file                      }"
+        "{b benchmark    |      | benchmark mode                  }"
+        "{r record       |      | record output                   }"
+        "{cc colours     |      | classify colours of passing objects"
+        " (more experimental and broken than anything else in this application) }";
 
     CommandLineParser parser(argc, argv, keys);
     parser.about("Tim The Tim");
@@ -21,6 +23,7 @@ int main(int argc, char** argv)
     String fileName = parser.get<String>(0);
     bool benchmark = parser.has("b");
     bool record = parser.has("r");
+    bool colours = parser.has("cc");
     if (!parser.check())
     {
         parser.printErrors();
@@ -28,7 +31,7 @@ int main(int argc, char** argv)
     }
 
     Tim tim;
-    if (tim.open(fileName, benchmark, record))
+    if (tim.open(fileName, benchmark, record, colours))
         tim.processFrames();
 
     return 0;

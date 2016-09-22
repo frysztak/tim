@@ -149,7 +149,22 @@ void Classifier::updateCounters()
     }
 }
 
-void Classifier::drawBoundingBoxes(InputOutputArray _frame)
+void Classifier::classifyColours(InputArray _frame)
+{
+    Mat frame = _frame.getMat();
+
+    for (auto& obj: classifiedObjects)
+    {
+        obj.averageColour(frame);
+        if (obj.collisions.size() < 2)
+        {
+            auto colour = obj.getColour();
+            obj.colourString = colourClassifier.classifyColour(colour);
+        }
+    }
+}
+
+void Classifier::drawBoundingBoxes(InputOutputArray _frame, bool classifyColour)
 {
     Mat frame = _frame.getMat();
     
@@ -158,6 +173,8 @@ void Classifier::drawBoundingBoxes(InputOutputArray _frame)
         rectangle(frame, obj.selector, Scalar(244, 196, 137), 2, LINE_AA);
 
         std::string text = std::to_string(obj.ID);
+        if (classifyColour)
+           text += ", " + obj.colourString;
         int fontFace = FONT_HERSHEY_DUPLEX;
         double fontScale = 0.6;
         int thickness = 1;

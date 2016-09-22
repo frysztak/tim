@@ -25,12 +25,12 @@ MovingObject::MovingObject(const Size& size) :
 
 MovingObject::MovingObject(const MovingObject& other) : 
    maxNumberOfFeatures(other.maxNumberOfFeatures), featureQualityLevel(other.featureQualityLevel),
-   minDistanceBetweenFeatures(other.minDistanceBetweenFeatures),
+   minDistanceBetweenFeatures(other.minDistanceBetweenFeatures), colour(other.colour),
    segments(other.segments), segmentLabels(other.segmentLabels), mask(other.mask.clone()),
    selector(other.selector),
    prevFeatures(other.prevFeatures), features(other.features), ID(other.ID), 
    featuresLastUpdated(other.featuresLastUpdated), remove(other.remove), alreadyCounted(other.alreadyCounted),
-   collisions(other.collisions)
+   collisions(other.collisions), colourString(other.colourString)
 {
     miniMask = mask(selector);
 }
@@ -40,6 +40,8 @@ MovingObject& MovingObject::operator=(const MovingObject& other)
     this->maxNumberOfFeatures = other.maxNumberOfFeatures;
     this->featureQualityLevel = other.featureQualityLevel;
     this->minDistanceBetweenFeatures = other.minDistanceBetweenFeatures;
+    this->colour = other.colour;
+    this->colourString = other.colourString;
     this->segments = std::vector<Segment>(other.segments);
     this->segmentLabels = other.segmentLabels;
     this->mask = other.mask.clone();
@@ -119,6 +121,21 @@ void MovingObject::predictNextPosition(InputArray _prevGrayFrame, InputArray _gr
     // remove points that could not be tracked
     for (int i = 0; i < (int)err.size(); i++)
         if (err[i] < 2) features.erase(features.begin() + i);
+}
+
+void MovingObject::averageColour(InputArray _frame)
+{
+    Mat frame = _frame.getMat();
+    auto c = mean(frame(selector), miniMask);
+    if (colour[0] == 0 && colour[1] == 0 && colour[2] == 0)
+        colour = c; 
+    else
+        colour = (colour + c) / 2;
+}
+
+Scalar MovingObject::getColour()
+{
+    return this->colour;
 }
 
 /* vim: set ft=cpp ts=4 sw=4 sts=4 tw=0 fenc=utf-8 et: */

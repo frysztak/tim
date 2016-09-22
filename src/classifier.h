@@ -5,6 +5,7 @@
 #include "movingobject.h"
 #include "line.h"
 #include "direction.h"
+#include "colourclassifier.h"
 
 using namespace cv;
 
@@ -16,8 +17,9 @@ class Classifier
         void trackObjects(InputArray _frame, InputArray _fgMask, std::vector<MovingObject>& objects);
         void checkCollisions();
         void updateCounters();
+        void classifyColours(InputArray _frame);
 
-        void drawBoundingBoxes(InputOutputArray _frame);
+        void drawBoundingBoxes(InputOutputArray _frame, bool classifyColours);
         void drawCollisionLines(InputOutputArray _frame);
         void drawCounters(InputOutputArray _frame);
 
@@ -30,6 +32,8 @@ class Classifier
         Line collisionLines[2];
         // naturalDirection goes from line #0 to line #1
         Direction naturalDirection, oppositeDirection;
+
+        ColourClassifier colourClassifier;
 };
 
 #endif
