@@ -19,14 +19,15 @@ Tim::~Tim()
     std::remove("/tmp/tim.path");
 }
 
-bool Tim::open(const string& name, bool benchmark, bool record, bool classifyColours)
+bool Tim::open(const TimParameters& parameters)
 {
 #ifndef DATA_DIR
 #error data dir is not defined.
 #endif
 
+    this->params = parameters;
     // open .json file and parse it
-    string jsonFileName = DATA_DIR + name + ".json"; 
+    string jsonFileName = DATA_DIR + params.fileName + ".json"; 
     ifstream jsonFile(jsonFileName, ifstream::in);
     Json json;
 
@@ -41,12 +42,12 @@ bool Tim::open(const string& name, bool benchmark, bool record, bool classifyCol
         return false;
     }
 
-    removeShadows = json["shadowDetection"].bool_value();
+    params.removeShadows = json["shadowDetection"].bool_value();
     double startTime = json["startTime"].number_value();
     std::string naturalDirection = json["naturalDirection"].string_value();
     
     // open video file
-    string videoFileName = DATA_DIR + name + ".mp4"; 
+    string videoFileName = DATA_DIR + params.fileName + ".mp4"; 
     videoCapture.open(videoFileName);
     if (!videoCapture.isOpened())
     {
@@ -72,7 +73,7 @@ bool Tim::open(const string& name, bool benchmark, bool record, bool classifyCol
     videoCapture.set(CV_CAP_PROP_POS_MSEC, startTime * 1000);
     this->frameSize = Size(width * scaleFactor, height * scaleFactor);
 
-    if (record)
+    if (params.record)
     {
         videoWriter.open("demo.avi", VideoWriter::fourcc('X','V','I','D'), fps, Size(width, height));
         if (!videoWriter.isOpened())
@@ -107,14 +108,10 @@ bool Tim::open(const string& name, bool benchmark, bool record, bool classifyCol
     shadows = new Shadows(json);
     classifier = new Classifier(linesPoints, naturalDirection);
 
-    if (!benchmark)
+    if (!params.benchmark)
         namedWindow("OpenCV", WINDOW_AUTOSIZE);
     else
         std::cout << "benchmark mode" << std::endl;
-
-    this->benchmarkMode = benchmark;
-    this->record = record;
-    this->classifyColours = classifyColours;
 
     return true;
 }
@@ -149,29 +146,29 @@ void Tim::processFrames()
         }
 
         shadowMask = Mat::zeros(frameSize, CV_8U);
-        if (removeShadows)
+        if (params.removeShadows)
         {
             shadows->removeShadows(inputFrame, background->getCurrentBackground(), 
                                    background->getCurrentStdDev(), foregroundMask, 
                                    objectLabels, movingObjects, shadowMask);
         }
 
-        if (!benchmarkMode)
+        if (!params.benchmark)
         {
             Mat foregroundMaskBGR, row1, row2;
 
             inputFrame.copyTo(displayFrame);
             if (!paused)
             {
-                Mat mask = removeShadows ? (shadowMask == 2) : foregroundMask;
+                Mat mask = params.removeShadows ? (shadowMask == 2) : foregroundMask;
                 classifier->trackObjects(displayFrame, mask, movingObjects);
                 classifier->checkCollisions();
                 classifier->updateCounters();
-                if (classifyColours)
+                if (params.classifyColours)
                     classifier->classifyColours(displayFrame);
             }
 
-            classifier->drawBoundingBoxes(displayFrame, classifyColours);
+            classifier->drawBoundingBoxes(displayFrame, params.classifyColours);
             classifier->drawCollisionLines(displayFrame);
             classifier->drawCounters(displayFrame);
 
@@ -184,14 +181,14 @@ void Tim::processFrames()
             vconcat(row1, row2, displayFrame);
             imshow("OpenCV", displayFrame);
             
-            if(record)
+            if(params.record)
                 videoWriter << displayFrame;
         }
         
-        if (benchmarkMode && frameCount == BENCHMARK_FRAMES_NUM)
+        if (params.benchmark && frameCount == BENCHMARK_FRAMES_NUM)
             break;
 
-        if (!benchmarkMode)
+        if (!params.benchmark)
         {
             char key = waitKey(30);
             if(key == 'q')
@@ -199,7 +196,7 @@ void Tim::processFrames()
             else if (key == ' ')
                 paused = !paused;
             else if (key == 's')
-                removeShadows = !removeShadows;
+                params.removeShadows = !params.removeShadows;
 
             // check if parameters got updated
             void *buf = NULL;
@@ -210,14 +207,14 @@ void Tim::processFrames()
                 auto json = Json::parse(jsonString, err);
                 shadows->updateParameters(json);
                 background->updateParameters(json);
-                this->removeShadows = json["shadowDetection"].bool_value();
+                params.removeShadows = json["shadowDetection"].bool_value();
                 nn_freemsg(buf);
             }
         }
     }
 
     auto t2 = std::chrono::high_resolution_clock::now();
-    if (benchmarkMode)
+    if (params.benchmark)
     {
         auto time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
         std::cout << "processed " << BENCHMARK_FRAMES_NUM << " frames in " << time_span.count() 

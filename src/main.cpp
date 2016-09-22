@@ -20,18 +20,22 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    String fileName = parser.get<String>(0);
-    bool benchmark = parser.has("b");
-    bool record = parser.has("r");
-    bool colours = parser.has("cc");
+    Tim tim;
+    TimParameters params = 
+    {
+        .fileName = parser.get<String>(0), 
+        .benchmark = parser.has("b"),
+        .record = parser.has("r"),
+        .classifyColours = parser.has("cc")
+    };
+
     if (!parser.check())
     {
         parser.printErrors();
         return 0;
     }
 
-    Tim tim;
-    if (tim.open(fileName, benchmark, record, colours))
+    if (tim.open(params))
         tim.processFrames();
 
     return 0;

@@ -12,19 +12,27 @@
 
 using namespace std;
 
+struct TimParameters
+{
+    std::string fileName;
+    bool benchmark;
+    bool record;
+    bool classifyColours;
+    bool removeShadows = false;
+};
+
 class Tim
 {
     public:
         ~Tim();
-        bool open(const string& name, bool benchmark, bool record, bool classifyColours);
+        bool open(const TimParameters& params);
         void processFrames();
 
     private:
+        TimParameters params;
         const double scaleFactor = .5;
 
         bool paused = false;
-        bool benchmarkMode = false, record = false, classifyColours = false;
-        bool removeShadows = false;
         uint32_t frameCount = 0;
 
         Background* background = nullptr;
