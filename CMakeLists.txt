@@ -35,7 +35,7 @@ set(CMAKE_DATA_DIR "${CMAKE_SOURCE_DIR}/data/")
 add_definitions(-DDATA_DIR="${CMAKE_DATA_DIR}")
 
 ## Find all source files to be compiled into object files
-file(GLOB SOURCES src/*.cpp)
+file(GLOB SOURCES src/*.cpp src/sse2/*.c)
 
 ## C++ compiler options
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -std=c++14")

@@ -85,6 +85,29 @@ void Background::processFrame(InputArray _src, OutputArray _foregroundMask)
         erode(foregroundMask, foregroundMask, params.morphFilterKernel);
 }
 
+void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
+{
+    Mat src = _src.getMat(), foregroundMask = _foregroundMask.getMat();
+    uint32_t nPixels = src.size().area();
+
+    for (uint32_t idx = 0; idx < nPixels; idx += 4)
+    {
+        uint32_t fgMask = processPixels_SSE2(src.data + 3*idx,
+                                            (float*)gaussians + 5*GAUSSIANS_PER_PIXEL*idx,
+                                            currentBackground.data + 3*idx,
+                                            (float*)currentStdDev.data + idx,
+                                            params.learningRate, params.initialVariance,
+                                            params.initialWeight, params.foregroundThreshold);
+
+        *((uint32_t*)foregroundMask.data + idx/4) = fgMask;
+    }
+
+    if (params.medianFilterSize != 0)
+        medianBlur(foregroundMask, foregroundMask, params.medianFilterSize);
+    if (params.morphFilterSize != 0)
+        erode(foregroundMask, foregroundMask, params.morphFilterKernel);
+}
+
 bool Background::processPixel(const Vec3b& bgr, GaussianMixture& mixture)
 {
     double weightSum = 0.0;

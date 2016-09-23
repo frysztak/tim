@@ -1,30 +1,13 @@
-#include <opencv2/imgproc.hpp>
-#include "background.h"
-#include "simd_math.h"
+#include <stdint.h>
+#include "../simd_math.h"
 
-void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
-{
-    Mat src = _src.getMat(), foregroundMask = _foregroundMask.getMat();
-    uint32_t nPixels = src.size().area();
+#define GAUSSIANS_PER_PIXEL 3
+#define etaConst 1.57496099457e+01 //pow(2 * M_PI, 3.0 / 2.0)
 
-    for (uint32_t idx = 0; idx < nPixels; idx += 4)
-    {
-        uint32_t fgMask = processPixelSSE2(src.data + 3*idx,
-                                           (float*)gaussians + 5*GAUSSIANS_PER_PIXEL*idx,
-                                           currentBackground.data + 3*idx,
-                                           (float*)currentStdDev.data + idx);
-
-        *((uint32_t*)foregroundMask.data + idx/4) = fgMask;
-    }
-
-    if (params.medianFilterSize != 0)
-        medianBlur(foregroundMask, foregroundMask, params.medianFilterSize);
-    if (params.morphFilterSize != 0)
-        erode(foregroundMask, foregroundMask, params.morphFilterKernel);
-}
-
-uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
-                                      uint8_t* currentBackground, float* currentStdDev)
+uint32_t processPixels_SSE2(const uint8_t* frame, float* gaussian, 
+                            uint8_t* currentBackground, float* currentStdDev,
+                            const float learningRate, const float initialVariance,
+                            const float initialWeight, const float foregroundThreshold)
 {
     __m128i bgr = _mm_loadu_si128((const __m128i*)frame); 
     // bgr now contains:
@@ -110,7 +93,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         // to be precise we should divide by etaConst*sigma^3, but sigma^2 is good enough
         __m128 eta = _mm_mul_ps(exp_approx_ps(exponent),
                                 _mm_rcp_ps(_mm_mul_ps(_mm_set1_ps(etaConst), variance)));
-        __m128 rho = _mm_mul_ps(eta, _mm_set1_ps(params.learningRate));
+        __m128 rho = _mm_mul_ps(eta, _mm_set1_ps(learningRate));
         __m128 oneMinusRho = _mm_sub_ps(_mm_set1_ps(1.0), rho);
 
         __m128 newMeanB = _mm_mul_ps(oneMinusRho, meanB);
@@ -133,7 +116,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         // weights are updated for Gaussians that didn't match, so let's invert mask first
         __m128i junk; 
         mask = _mm_xor_ps(mask, (__m128)_mm_cmpeq_epi8(junk,junk)); 
-        __m128 newWeight = _mm_mul_ps(weight, _mm_set1_ps(1.0 - params.learningRate));
+        __m128 newWeight = _mm_mul_ps(weight, _mm_set1_ps(1.0 - learningRate));
         weight = _mm_or_ps(_mm_and_ps(mask, newWeight), _mm_andnot_ps(mask, weight));
 
         _mm_store_ps(00 + offset + gaussian, meanB);
@@ -184,12 +167,12 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         _mm_store_ps(24 + 4*i + gaussian, value);
         // variance
         value = _mm_load_ps(36 + 4*i + gaussian);
-        value = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(params.initialVariance)), 
+        value = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(initialVariance)), 
                           _mm_andnot_ps(isMin, value));
         _mm_store_ps(36 + 4*i + gaussian, value);
 
         // modify weights only locally, we'll need them in just a bit
-        weights[i] = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(params.initialWeight)), 
+        weights[i] = _mm_or_ps(_mm_and_ps(isMin, _mm_set1_ps(initialWeight)), 
                                _mm_andnot_ps(isMin, weights[i]));
     }
 
@@ -238,7 +221,7 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
         dR = _mm_mul_ps(_mm_set1_ps(0.5), _mm_mul_ps(dR, dR));
         newEpsilon_bg = _mm_add_ps(newEpsilon_bg, _mm_mul_ps(dR, varianceReciprocal));
 
-        __m128 newFgMask = _mm_cmpgt_ps(newEpsilon_bg, _mm_set1_ps(params.foregroundThreshold));
+        __m128 newFgMask = _mm_cmpgt_ps(newEpsilon_bg, _mm_set1_ps(foregroundThreshold));
         fgMask = _mm_or_ps(_mm_and_ps(isMax, newFgMask), _mm_andnot_ps(isMax, fgMask));
         
         bgB = _mm_or_ps(_mm_and_ps(isMax, meanB), _mm_andnot_ps(isMax, bgB));
@@ -300,5 +283,3 @@ uint32_t Background::processPixelSSE2(const uint8_t* frame, float* gaussian,
 
     return outMask;
 }
-
-/* vim: set ft=cpp ts=4 sw=4 sts=4 tw=0 fenc=utf-8 et: */

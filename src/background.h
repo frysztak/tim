@@ -61,11 +61,15 @@ class Background
         GaussianMixture *gaussians = nullptr;
 
         bool processPixel(const Vec3b& rgb, GaussianMixture& mixture);
-        uint32_t processPixelSSE2(const uint8_t* frame, float* gaussian, 
-                                  uint8_t* currentBackground, float* currentStdDev);
-
 };
 
+extern "C" 
+{
+    extern uint32_t processPixels_SSE2(const uint8_t* frame, float* gaussian, 
+                                       uint8_t* currentBackground, float* currentStdDev,
+                                       const float learningRate, const float initialVariance,
+                                       const float initialWeight, const float foregroundThreshold);
+}
 #endif
 
 /* vim: set ft=cpp ts=4 sw=4 sts=4 tw=0 fenc=utf-8 et: */
