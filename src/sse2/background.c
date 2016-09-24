@@ -113,11 +113,9 @@ uint32_t processPixels_SSE2(const uint8_t* frame, float* gaussian,
         variance = _mm_or_ps(_mm_and_ps(mask, newVariance), _mm_andnot_ps(mask, variance));
 
         // at this point, local copies of mean{B,G,R} and variance are updated.
-        // weights are updated for Gaussians that didn't match, so let's invert mask first
-        __m128i junk; 
-        mask = _mm_xor_ps(mask, (__m128)_mm_cmpeq_epi8(junk,junk)); 
+        // weights are updated for Gaussians that didn't match
         __m128 newWeight = _mm_mul_ps(weight, _mm_set1_ps(1.0 - learningRate));
-        weight = _mm_or_ps(_mm_and_ps(mask, newWeight), _mm_andnot_ps(mask, weight));
+        weight = _mm_or_ps(_mm_andnot_ps(mask, newWeight), _mm_and_ps(mask, weight));
 
         _mm_store_ps(00 + offset + gaussian, meanB);
         _mm_store_ps(12 + offset + gaussian, meanG);
@@ -141,9 +139,6 @@ uint32_t processPixels_SSE2(const uint8_t* frame, float* gaussian,
 
     // find minimal weight
     __m128 minWeight = _mm_min_ps(weights[0], _mm_min_ps(weights[1], weights[2]));
-    __m128i junk; 
-    __m128 notMatched = _mm_xor_ps(matched, (__m128)_mm_cmpeq_epi8(junk,junk)); 
-
     __m128 isMin, value;
     for (int i = 0; i < 3; i++)
     {
@@ -151,7 +146,7 @@ uint32_t processPixels_SSE2(const uint8_t* frame, float* gaussian,
         // finding out where max value lies is not enough, we need to make sure we don't overwrite
         // values of Gaussians that were previously matched with input data.
         // so, AND isMin with inverted 'matched' mask
-        isMin = _mm_and_ps(isMin, notMatched);
+        isMin = _mm_andnot_ps(matched, isMin);
 
         // meanB
         value = _mm_load_ps(00 + 4*i + gaussian);
