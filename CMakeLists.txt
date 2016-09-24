@@ -47,6 +47,11 @@ if (SIMD)
 	add_definitions(-DSIMD)
 endif()
 
+option(MT "Multi-threaded background substraction. Works only with SIMD enabled." ON)
+if(MT)
+    add_definitions(-DMULTITHREADING)
+endif()
+
 option(PROFILE "Compile with flags that make it possible to profile the app with Callgrind." OFF)
 if (PROFILE)
 	set(CMAKE_BUILD_TYPE Release)

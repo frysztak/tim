@@ -3,6 +3,9 @@
 
 #include <opencv2/core.hpp>
 #include "json11.hpp"
+#ifdef MULTITHREADING
+#include "ThreadPool.h"
+#endif
 
 #define GAUSSIANS_PER_PIXEL 3
 
@@ -61,6 +64,10 @@ class Background
         GaussianMixture *gaussians = nullptr;
 
         bool processPixel(const Vec3b& rgb, GaussianMixture& mixture);
+#ifdef MULTITHREADING
+        int nThreads;
+        ThreadPool threadPool;
+#endif
 };
 
 extern "C" 

@@ -17,6 +17,9 @@ void BackgroundParameters::parse(const json11::Json& json)
 
 Background::Background(const Size& size, const json11::Json& json) :
     etaConst(pow(2 * M_PI, 3.0 / 2.0))
+#ifdef MULTITHREADING
+    ,threadPool(5)
+#endif
 {
     params.parse(json);
 
@@ -29,6 +32,9 @@ Background::Background(const Size& size, const json11::Json& json) :
     currentBackground = Mat::zeros(size, CV_8UC3);
     currentStdDev = Mat::zeros(size, CV_32F);
 
+#ifdef MULTITHREADING    
+    nThreads = std::thread::hardware_concurrency();
+#endif
 }
 
 Background::~Background()
@@ -90,6 +96,34 @@ void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
     Mat src = _src.getMat(), foregroundMask = _foregroundMask.getMat();
     uint32_t nPixels = src.size().area();
 
+#ifdef MULTITHREADING
+    uint32_t pixelsPerThread = nPixels / nThreads;
+    std::vector<std::future<void>> results;
+
+    for (int i = 0; i < nThreads; i++)
+    {
+        uint32_t startIdx = pixelsPerThread * i;
+        uint32_t endIdx = startIdx + pixelsPerThread; 
+
+        results.emplace_back(threadPool.enqueue([=]()
+        {
+            for (uint32_t idx = startIdx; idx < endIdx; idx += 4)
+            {
+                uint32_t fgMask = processPixels_SSE2(src.data + 3*idx,
+                                            (float*)gaussians + 5*GAUSSIANS_PER_PIXEL*idx,
+                                            currentBackground.data + 3*idx,
+                                            (float*)currentStdDev.data + idx,
+                                            params.learningRate, params.initialVariance,
+                                            params.initialWeight, params.foregroundThreshold);
+
+                *((uint32_t*)foregroundMask.data + idx/4) = fgMask;
+            }
+        }));
+    }
+
+    for(auto&& r: results)
+        r.get();
+#else
     for (uint32_t idx = 0; idx < nPixels; idx += 4)
     {
         uint32_t fgMask = processPixels_SSE2(src.data + 3*idx,
@@ -101,6 +135,7 @@ void Background::processFrameSIMD(InputArray _src, OutputArray _foregroundMask)
 
         *((uint32_t*)foregroundMask.data + idx/4) = fgMask;
     }
+#endif
 
     if (params.medianFilterSize != 0)
         medianBlur(foregroundMask, foregroundMask, params.medianFilterSize);
